@@ -9,6 +9,8 @@ from app.auth.schemas import (
     UserLogin,
     TokenResponse,
     UserResponse,
+    ProfileUpdate,
+    ChangePasswordRequest,
 )
 
 from app.auth.service import (
@@ -18,6 +20,8 @@ from app.auth.service import (
 
 from app.auth.security import (
     create_access_token,
+    verify_password,
+    hash_password,
 )
 
 from app.auth.dependencies import (
@@ -98,3 +102,26 @@ async def get_me(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+@router.patch("/me", response_model=UserResponse)
+async def update_me(data: ProfileUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.display_name = data.display_name.strip()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(current_user)
+    return current_user
+
+@router.post("/change-password")
+async def change_password(data: ChangePasswordRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    current_user.password_hash = hash_password(data.new_password)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {"message": "Password changed successfully."}

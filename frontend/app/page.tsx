@@ -23,7 +23,7 @@ export default function Home() {
 
   return (
     <div className="loading-screen">
-      Loading SubHub...
+      Loading UniSora...
     </div>
   );
 }

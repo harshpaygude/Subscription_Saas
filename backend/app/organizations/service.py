@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ def create_organization(
 
     organization = Organization(
         name=organization_data.name,
-        created_at="2026-09-16T00:00:00",
+        created_at=datetime.utcnow(),
     )
 
     db.add(organization)

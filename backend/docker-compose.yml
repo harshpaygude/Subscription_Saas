@@ -15,5 +15,51 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d subscription_saas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: subscription-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/subscription_saas
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in backend/.env}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+      AZURE_TENANT: ${AZURE_TENANT:-common}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-http://127.0.0.1:3000/api/integrations/azure/oauth/callback}
+      AZURE_SCOPES: ${AZURE_SCOPES:-https://management.azure.com/user_impersonation}
+      AZURE_TOKEN_ENCRYPTION_KEY: ${AZURE_TOKEN_ENCRYPTION_KEY:-}
+      ANTHROPIC_DEFAULT_MODEL: ${ANTHROPIC_DEFAULT_MODEL:-claude-sonnet-4-6}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        API_PROXY_TARGET: http://backend:8000
+    container_name: subscription-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
 volumes:
   postgres_data:

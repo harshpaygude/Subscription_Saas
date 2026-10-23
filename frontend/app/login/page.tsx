@@ -64,7 +64,7 @@ export default function LoginPage() {
 
           <div>
             <div className="login-brand-name">
-              SubHub
+              UniSora
               <span>PRO</span>
             </div>
 
@@ -193,7 +193,7 @@ export default function LoginPage() {
             >
               {loading
                 ? "Signing in..."
-                : "Sign in to SubHub"}
+                : "Sign in to UniSora"}
             </button>
 
           </form>
@@ -237,7 +237,7 @@ export default function LoginPage() {
 
 
         <div className="login-footer">
-          © 2026 SubHub. Subscription Management Platform.
+          © 2026 UniSora. Subscription Management Platform.
         </div>
 
       </div>

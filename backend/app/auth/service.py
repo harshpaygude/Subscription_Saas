@@ -26,7 +26,7 @@ def register_user(
 
     organization = Organization(
         name=user_data.organization_name,
-        created_at=datetime.utcnow().isoformat(),
+        created_at=datetime.utcnow(),
     )
 
     db.add(organization)
@@ -34,16 +34,21 @@ def register_user(
 
     user = User(
         email=user_data.email,
+        display_name=user_data.email.split("@")[0],
         password_hash=hash_password(
             user_data.password
         ),
         organization_id=organization.id,
         role="OWNER",
-        created_at=datetime.utcnow().isoformat(),
+        created_at=datetime.utcnow(),
     )
 
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(user)
 
     return user

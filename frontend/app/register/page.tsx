@@ -180,7 +180,7 @@ export default function RegisterPage() {
 
             <div className="login-brand-name">
 
-              SubHub
+              UniSora
 
               <span>
                 PRO
@@ -213,7 +213,7 @@ export default function RegisterPage() {
 
 
             <p>
-              Set up your SubHub workspace and
+              Set up your UniSora workspace and
               start managing your subscriptions.
             </p>
 
@@ -436,7 +436,7 @@ export default function RegisterPage() {
 
               {loading
                 ? "Creating account..."
-                : "Create SubHub Account"}
+                : "Create UniSora Account"}
 
             </button>
 
@@ -464,7 +464,7 @@ export default function RegisterPage() {
         {/* FOOTER */}
 
         <div className="login-footer">
-          © 2026 SubHub. Subscription Management Platform.
+          © 2026 UniSora. Subscription Management Platform.
         </div>
 
 

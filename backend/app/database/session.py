@@ -26,5 +26,12 @@ def get_db():
 
     try:
         yield db
+    except Exception:
+        # Route handlers intentionally keep persistence atomic. If validation,
+        # provider work, or commit processing fails, never leave a transaction
+        # open in the pooled session and never expose a partially-written state
+        # to the next request.
+        db.rollback()
+        raise
     finally:
         db.close()
