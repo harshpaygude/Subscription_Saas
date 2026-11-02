@@ -1,475 +1,226 @@
 "use client";
 
-import {
-  FormEvent,
-  useState,
-} from "react";
-
-import {
-  Building2,
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-} from "lucide-react";
-
-import Link from "next/link";
-
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
-import { register } from "@/lib/api";
-
+import Link from "next/link";
+import { Building2, Eye, EyeOff, Lock, Mail, CheckCircle2 } from "lucide-react";
+import { register, login } from "@/lib/api";
+import { LoginBrandPanel } from "@/components/auth/LoginBrandPanel";
 
 export default function RegisterPage() {
-
   const router = useRouter();
 
+  const [organizationName, setOrganizationName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [organizationName, setOrganizationName] =
-    useState("");
-
-
-  const [email, setEmail] =
-    useState("");
-
-
-  const [password, setPassword] =
-    useState("");
-
-
-  const [confirmPassword, setConfirmPassword] =
-    useState("");
-
-
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-
-  const [showConfirmPassword, setShowConfirmPassword] =
-    useState(false);
-
-
-  const [loading, setLoading] =
-    useState(false);
-
-
-  const [error, setError] =
-    useState("");
-
-
-  const [success, setSuccess] =
-    useState("");
-
-
-  async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
-
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setError("");
     setSuccess("");
 
-
-    /* ========================= */
-    /* VALIDATION */
-    /* ========================= */
-
     if (!organizationName.trim()) {
-
-      setError(
-        "Please enter your organization name."
-      );
-
+      setError("Please enter your organization name.");
       return;
     }
-
 
     if (!email.trim()) {
-
-      setError(
-        "Please enter your email address."
-      );
-
+      setError("Please enter your work email address.");
       return;
     }
-
 
     if (password.length < 8) {
-
-      setError(
-        "Password must be at least 8 characters."
-      );
-
+      setError("Password must be at least 8 characters.");
       return;
     }
-
 
     if (password !== confirmPassword) {
-
-      setError(
-        "Passwords do not match."
-      );
-
+      setError("Passwords do not match.");
       return;
     }
-
 
     setLoading(true);
 
-
-    /* ========================= */
-    /* REGISTER */
-    /* ========================= */
-
     try {
+      await register(email.trim(), password, organizationName.trim());
+      setSuccess("Account created successfully! Preparing your onboarding workspace…");
 
-      await register(
-        email.trim(),
-        password,
-        organizationName.trim()
-      );
-
-
-      setSuccess(
-        "Account created successfully. Redirecting to login..."
-      );
-
-
-      setTimeout(() => {
-
-        router.replace("/login");
-
-      }, 1200);
-
-
+      // Auto-login so user lands directly on the onboarding page
+      try {
+        const loginRes = await login(email.trim(), password);
+        localStorage.setItem("access_token", loginRes.access_token);
+        setTimeout(() => {
+          router.replace("/onboarding");
+        }, 700);
+      } catch {
+        setTimeout(() => {
+          router.replace("/login");
+        }, 1200);
+      }
     } catch (err) {
-
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to create your account."
+        err instanceof Error ? err.message : "Unable to create your account."
       );
-
-    } finally {
-
       setLoading(false);
-
     }
   }
 
-
   return (
-    <main className="login-page">
+    <main className="lp-shell">
+      <LoginBrandPanel />
 
-      <div className="login-container">
-
-
-        {/* ========================= */}
-        {/* BRAND */}
-        {/* ========================= */}
-
-        <div className="login-brand">
-
-          <div className="login-logo">
-            S
+      <div className="lp-form-panel">
+        <div className="lp-form-card">
+          {/* Mobile brand header */}
+          <div className="lp-mobile-brand">
+            <div className="lp-logo-mark-sm">U</div>
+            <span className="lp-mobile-brand-name">
+              UniSora <span>PRO</span>
+            </span>
           </div>
 
-
-          <div>
-
-            <div className="login-brand-name">
-
-              UniSora
-
-              <span>
-                PRO
-              </span>
-
-            </div>
-
-
-            <div className="login-brand-subtitle">
-              Subscription Central
-            </div>
-
+          <div className="lp-form-heading">
+            <h1>Create your account</h1>
+            <p>Set up your UniSora workspace and start managing your company subscriptions.</p>
           </div>
-
-        </div>
-
-
-        {/* ========================= */}
-        {/* REGISTER CARD */}
-        {/* ========================= */}
-
-        <div className="login-card">
-
-
-          <div className="login-heading">
-
-            <h1>
-              Create your account
-            </h1>
-
-
-            <p>
-              Set up your UniSora workspace and
-              start managing your subscriptions.
-            </p>
-
-          </div>
-
-
-          {/* ========================= */}
-          {/* ERROR */}
-          {/* ========================= */}
 
           {error && (
-
-            <div className="login-error">
+            <div className="lp-error-banner" role="alert">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
               {error}
             </div>
-
           )}
-
-
-          {/* ========================= */}
-          {/* SUCCESS */}
-          {/* ========================= */}
 
           {success && (
-
-            <div className="login-success">
+            <div className="lp-success-banner" role="status">
+              <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
               {success}
             </div>
-
           )}
 
-
-          {/* ========================= */}
-          {/* FORM */}
-          {/* ========================= */}
-
-          <form
-            onSubmit={handleSubmit}
-            className="login-form"
-          >
-
-
-            {/* ORGANIZATION */}
-
-            <div className="form-field">
-
-              <label htmlFor="organization">
-                Organization Name
-              </label>
-
-
-              <div className="input-wrapper">
-
-                <Building2 size={17} />
-
-
+          <form onSubmit={handleSubmit} className="lp-form" noValidate>
+            {/* Organization Name */}
+            <div className="lp-field">
+              <label htmlFor="reg-org">Organization name</label>
+              <div className="lp-input-wrap">
+                <Building2 size={15} className="lp-input-icon" />
                 <input
-                  id="organization"
+                  id="reg-org"
                   type="text"
-                  placeholder="Your company name"
+                  placeholder="Acme Technologies Inc."
                   value={organizationName}
-                  onChange={(event) =>
-                    setOrganizationName(
-                      event.target.value
-                    )
-                  }
+                  onChange={(e) => setOrganizationName(e.target.value)}
+                  autoComplete="organization"
                   required
                 />
-
               </div>
-
             </div>
 
-
-            {/* EMAIL */}
-
-            <div className="form-field">
-
-              <label htmlFor="register-email">
-                Work Email
-              </label>
-
-
-              <div className="input-wrapper">
-
-                <Mail size={17} />
-
-
+            {/* Work Email */}
+            <div className="lp-field">
+              <label htmlFor="reg-email">Work email</label>
+              <div className="lp-input-wrap">
+                <Mail size={15} className="lp-input-icon" />
                 <input
-                  id="register-email"
+                  id="reg-email"
                   type="email"
                   placeholder="you@company.com"
                   value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                   required
                 />
-
               </div>
-
             </div>
 
-
-            {/* PASSWORD */}
-
-            <div className="form-field">
-
-              <label htmlFor="register-password">
-                Password
-              </label>
-
-
-              <div className="input-wrapper">
-
-                <Lock size={17} />
-
-
+            {/* Password */}
+            <div className="lp-field">
+              <label htmlFor="reg-password">Password</label>
+              <div className="lp-input-wrap">
+                <Lock size={15} className="lp-input-icon" />
                 <input
-                  id="register-password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
-                  placeholder="Create a password"
+                  id="reg-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Minimum 8 characters"
                   value={password}
-                  onChange={(event) =>
-                    setPassword(event.target.value)
-                  }
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                 />
-
-
                 <button
                   type="button"
-                  className="password-toggle"
-                  onClick={() =>
-                    setShowPassword(
-                      !showPassword
-                    )
-                  }
+                  className="lp-toggle-pw"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-
-                  {showPassword ? (
-                    <EyeOff size={17} />
-                  ) : (
-                    <Eye size={17} />
-                  )}
-
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
-
               </div>
-
             </div>
 
-
-            {/* CONFIRM PASSWORD */}
-
-            <div className="form-field">
-
-              <label htmlFor="confirm-password">
-                Confirm Password
-              </label>
-
-
-              <div className="input-wrapper">
-
-                <Lock size={17} />
-
-
+            {/* Confirm Password */}
+            <div className="lp-field">
+              <label htmlFor="reg-confirm-password">Confirm password</label>
+              <div className="lp-input-wrap">
+                <Lock size={15} className="lp-input-icon" />
                 <input
-                  id="confirm-password"
-                  type={
-                    showConfirmPassword
-                      ? "text"
-                      : "password"
-                  }
-                  placeholder="Confirm your password"
+                  id="reg-confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your password"
                   value={confirmPassword}
-                  onChange={(event) =>
-                    setConfirmPassword(
-                      event.target.value
-                    )
-                  }
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                 />
-
-
                 <button
                   type="button"
-                  className="password-toggle"
-                  onClick={() =>
-                    setShowConfirmPassword(
-                      !showConfirmPassword
-                    )
-                  }
+                  className="lp-toggle-pw"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
-
-                  {showConfirmPassword ? (
-                    <EyeOff size={17} />
-                  ) : (
-                    <Eye size={17} />
-                  )}
-
+                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
-
               </div>
-
             </div>
-
-
-            {/* SUBMIT */}
 
             <button
               type="submit"
-              className="login-button"
+              className="lp-submit-btn"
               disabled={loading}
             >
-
-              {loading
-                ? "Creating account..."
-                : "Create UniSora Account"}
-
+              {loading ? (
+                <>
+                  <span className="lp-btn-spinner" />
+                  Creating workspace…
+                </>
+              ) : (
+                "Create UniSora Account"
+              )}
             </button>
-
           </form>
 
-
-          {/* ========================= */}
-          {/* LOGIN LINK */}
-          {/* ========================= */}
-
-          <p className="register-text">
-
-            Already have an account?
-
-            <Link href="/login">
+          <p className="lp-signup-text">
+            Already have an account?{" "}
+            <Link href="/login" className="lp-signup-link">
               Sign in
             </Link>
-
           </p>
 
-
+          <div className="lp-form-footer">
+            © 2026 UniSora. Subscription Management Platform.
+          </div>
         </div>
-
-
-        {/* FOOTER */}
-
-        <div className="login-footer">
-          © 2026 UniSora. Subscription Management Platform.
-        </div>
-
-
       </div>
-
     </main>
   );
 }

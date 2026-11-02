@@ -409,6 +409,20 @@
   margin: 0;
 }
 
+.lp-success-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 8px;
+  padding: 11px 13px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .lp-error-banner {
   display: flex;
   align-items: flex-start;
