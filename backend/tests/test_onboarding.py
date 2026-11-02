@@ -151,6 +151,7 @@ class OnboardingTests(unittest.TestCase):
         self.assertIn("Company", wb.sheetnames)
         self.assertIn("Departments", wb.sheetnames)
         self.assertIn("Employees", wb.sheetnames)
+        self.assertIn("Assets", wb.sheetnames)
 
     def test_excel_parse_valid_workbook(self):
         # Create a valid workbook in memory
@@ -165,6 +166,14 @@ class OnboardingTests(unittest.TestCase):
         ws_dept.append(["Sales", "Direct sales"])
         ws_dept.append(["Marketing", "Growth"])
 
+        ws_emp = wb.create_sheet("Employees")
+        ws_emp.append(["employee_id", "full_name", "email", "department_name", "phone_number"])
+        ws_emp.append(["EMP-101", "Alex Smith", "alex@alpha.test", "Sales", "+1234567890"])
+
+        ws_asset = wb.create_sheet("Assets")
+        ws_asset.append(["asset_tag", "name", "asset_type", "assigned_to", "purchase_cost"])
+        ws_asset.append(["AST-001", "MacBook Pro 16", "Laptop", "alex@alpha.test", "2999.00"])
+
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
@@ -177,7 +186,69 @@ class OnboardingTests(unittest.TestCase):
         self.assertEqual(data["company"]["company_name"], "Alpha Tech")
         self.assertEqual(data["company"]["country"], "Canada")
         self.assertEqual(data["department_count"], 2)
+        self.assertEqual(data["employee_count"], 1)
+        self.assertEqual(data["asset_count"], 1)
+        self.assertEqual(data["assets"][0]["asset_tag"], "AST-001")
+        self.assertEqual(data["assets"][0]["assigned_to"], "alex@alpha.test")
         self.assertEqual(len(data["errors"]), 0)
+
+    def test_onboarding_submission_creates_employees_and_assets(self):
+        from app.database.models import Asset, AssetAssignment, EmployeeLifecycle
+        payload = {
+            "company": {
+                "legal_name": "Tech Corp",
+                "display_name": "Tech",
+                "industry": "Technology & Software",
+                "company_size": "11–50 employees",
+                "country": "United States",
+            },
+            "departments": [
+                {"name": "Engineering", "description": "Core dev"},
+            ],
+            "employees": [
+                {
+                    "employee_id": "EMP-999",
+                    "full_name": "John Doe",
+                    "email": "johndoe@techcorp.test",
+                    "department_name": "Engineering",
+                }
+            ],
+            "assets": [
+                {
+                    "asset_tag": "AST-LAP-999",
+                    "name": "ThinkPad T14",
+                    "asset_type": "Laptop",
+                    "assigned_to": "johndoe@techcorp.test",
+                    "purchase_cost": "1499.00",
+                }
+            ],
+        }
+        res = self.client.post("/organizations/me/onboarding", json=payload)
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data["onboarding_completed"])
+
+        # Check user created
+        emp_user = self.db.query(User).filter(User.email == "johndoe@techcorp.test").first()
+        self.assertIsNotNone(emp_user)
+        self.assertEqual(emp_user.employee_id, "EMP-999")
+
+        # Check lifecycle created
+        lifecycle = self.db.query(EmployeeLifecycle).filter(EmployeeLifecycle.user_id == emp_user.id).first()
+        self.assertIsNotNone(lifecycle)
+        self.assertEqual(lifecycle.status, "ACTIVE")
+
+        # Check asset created and assigned
+        asset = self.db.query(Asset).filter(Asset.asset_tag == "AST-LAP-999").first()
+        self.assertIsNotNone(asset)
+        self.assertEqual(asset.status, "ASSIGNED")
+        self.assertEqual(asset.name, "ThinkPad T14")
+
+        # Check assignment record
+        assignment = self.db.query(AssetAssignment).filter(AssetAssignment.asset_id == asset.id).first()
+        self.assertIsNotNone(assignment)
+        self.assertEqual(assignment.user_id, emp_user.id)
+        self.assertEqual(assignment.status, "ACTIVE")
 
     def test_excel_parse_rejects_non_xlsx(self):
         files = {"file": ("test.txt", b"plain text", "text/plain")}

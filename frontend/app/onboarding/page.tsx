@@ -18,6 +18,15 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
+  Laptop,
+  Zap,
+  Globe,
+  Mail,
+  Phone,
+  MapPin,
+  Hash,
+  Tag,
+  CheckCircle2,
 } from "lucide-react";
 import {
   getCurrentUser,
@@ -34,6 +43,7 @@ import { DepartmentEditor } from "@/components/onboarding/DepartmentEditor";
 
 type Mode = "choose" | "excel" | "manual";
 type ManualStep = 1 | 2 | 3 | 4;
+type PreviewTab = "overview" | "company" | "departments" | "employees" | "assets";
 
 const INDUSTRIES = [
   "Technology & Software",
@@ -90,8 +100,10 @@ export default function OnboardingPage() {
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [excelDragging, setExcelDragging] = useState(false);
   const [excelParsing, setExcelParsing] = useState(false);
+  const [loadingSample, setLoadingSample] = useState(false);
   const [excelPreview, setExcelPreview] = useState<ExcelImportResult | null>(null);
   const [excelError, setExcelError] = useState("");
+  const [previewTab, setPreviewTab] = useState<PreviewTab>("overview");
 
   // Check onboarding status and load user
   useEffect(() => {
@@ -157,6 +169,8 @@ export default function OnboardingPage() {
     try {
       const preview = await parseOnboardingExcel(file);
       setExcelPreview(preview);
+      setPreviewTab("overview");
+
       if (preview.company) {
         setCompany({
           legal_name: preview.company.legal_name || preview.company.company_name || undefined,
@@ -173,9 +187,9 @@ export default function OnboardingPage() {
           postal_code: preview.company.postal_code || undefined,
           tax_registration_number: preview.company.tax_registration_number || undefined,
         });
-        if (preview.departments && preview.departments.length > 0) {
-          setDepartments(preview.departments);
-        }
+      }
+      if (preview.departments && preview.departments.length > 0) {
+        setDepartments(preview.departments);
       }
     } catch (err) {
       setExcelError(err instanceof Error ? err.message : "Failed to parse workbook.");
@@ -184,12 +198,38 @@ export default function OnboardingPage() {
     }
   }
 
+  // Quick 1-click test with sample Excel file
+  async function handleLoadSampleFile() {
+    setLoadingSample(true);
+    setExcelError("");
+    try {
+      const res = await fetch("/UniSora_PRO_Sample_Onboarding.xlsx");
+      if (!res.ok) {
+        throw new Error("Could not fetch sample workbook from server. Please upload it directly from the samples directory.");
+      }
+      const blob = await res.blob();
+      const file = new File([blob], "UniSora_PRO_Sample_Onboarding.xlsx", {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      await handleExcelFile(file);
+    } catch (err) {
+      setExcelError(err instanceof Error ? err.message : "Failed to load sample workbook.");
+    } finally {
+      setLoadingSample(false);
+    }
+  }
+
   async function handleSubmit() {
     setSubmitting(true);
     setSubmitError("");
 
     try {
-      await submitOnboarding({ company, departments });
+      await submitOnboarding({
+        company,
+        departments,
+        employees: excelPreview?.employees || [],
+        assets: excelPreview?.assets || [],
+      });
       setDone(true);
       setTimeout(() => {
         router.replace("/dashboard");
@@ -248,6 +288,7 @@ export default function OnboardingPage() {
             <div className="ob-header-sub">Company Setup Experience</div>
           </div>
         </div>
+
         <button
           className="ob-skip-btn"
           onClick={() => {
@@ -270,12 +311,12 @@ export default function OnboardingPage() {
               <span className="ob-eyebrow">Workspace Configuration</span>
               <h1>Let&apos;s set up your company</h1>
               <p>
-                Tell us a little about your organization so we can configure your subscription management workspace.
+                Choose how you would like to set up your organization, teams, staff members, and IT hardware assets.
               </p>
             </div>
 
             <div className="ob-choose-cards">
-              {/* Option A: Excel */}
+              {/* Option A: Excel Import */}
               <button
                 type="button"
                 className="ob-choose-card"
@@ -286,17 +327,17 @@ export default function OnboardingPage() {
                 </div>
                 <div className="ob-choose-copy">
                   <div className="ob-choose-title-row">
-                    <strong>Import company information</strong>
-                    <span className="ob-tag-recommended">Fastest</span>
+                    <strong>Import company Excel workbook</strong>
+                    <span className="ob-tag-recommended">Fastest & Complete</span>
                   </div>
                   <span>
-                    Upload your company Excel workbook to quickly configure your organization, departments, and teams.
+                    Upload your company workbook to automatically extract and configure your company profile, departments, employee accounts, and IT assets in one step.
                   </span>
                   <div className="ob-choose-tags">
                     <span>.xlsx workbook</span>
-                    <span>Downloadable template</span>
-                    <span>Auto-detects departments</span>
-                    <span>Validation preview</span>
+                    <span>Extracts staff & assets</span>
+                    <span>Sample workbook included</span>
+                    <span>Live data preview</span>
                   </div>
                 </div>
                 <ChevronRight size={20} className="ob-choose-arrow" />
@@ -329,6 +370,47 @@ export default function OnboardingPage() {
               </button>
             </div>
 
+            {/* Quick Demo Sample Callout */}
+            <div
+              className="ob-sample-banner"
+              style={{ marginTop: 24, cursor: "pointer" }}
+              onClick={() => {
+                setMode("excel");
+                setTimeout(handleLoadSampleFile, 150);
+              }}
+            >
+              <div className="ob-sample-banner-left">
+                <div className="ob-sample-banner-icon">
+                  <Zap size={22} />
+                </div>
+                <div>
+                  <div className="ob-sample-banner-title">
+                    <strong>Want to test immediately?</strong>
+                    <span className="ob-tag-demo">1-Click Test</span>
+                  </div>
+                  <p>
+                    Test the complete extraction workflow with our pre-configured sample workbook (NovaTech Cloud / UniSora PRO). Extracts 6 departments, 6 employees, and 6 IT hardware assets!
+                  </p>
+                  <span className="ob-sample-path-hint">
+                    File available in workspace: <code>UniSora_PRO_Sample_Onboarding.xlsx</code>
+                  </span>
+                </div>
+              </div>
+              <div className="ob-sample-banner-actions">
+                <button
+                  type="button"
+                  className="ob-btn-sample-load"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMode("excel");
+                    handleLoadSampleFile();
+                  }}
+                >
+                  <Zap size={15} /> Instant Test
+                </button>
+              </div>
+            </div>
+
             <div className="ob-security-callout">
               <ShieldCheck size={16} />
               <span>
@@ -356,27 +438,69 @@ export default function OnboardingPage() {
               >
                 <ChevronLeft size={16} /> Back to options
               </button>
-              <h2>Import company information</h2>
+              <div className="ob-flow-title-wrap">
+                <h2>Import Company & Organization Data</h2>
+                <span className="ob-flow-badge">Auto-Extraction</span>
+              </div>
             </div>
 
-            {/* Template download banner */}
-            <div className="ob-template-banner">
-              <div className="ob-template-icon">
-                <FileSpreadsheet size={22} />
+            {/* Sample File Banner with 1-click test button & download links */}
+            <div className="ob-sample-banner">
+              <div className="ob-sample-banner-left">
+                <div className="ob-sample-banner-icon">
+                  <FileSpreadsheet size={24} />
+                </div>
+                <div>
+                  <div className="ob-sample-banner-title">
+                    <strong>UniSora PRO Sample Onboarding Workbook</strong>
+                    <span className="ob-tag-demo">Ready to test</span>
+                  </div>
+                  <p>
+                    Use our pre-filled workbook to test full extraction: <strong>Company Details</strong>, <strong>6 Departments</strong>, <strong>6 Employees</strong>, and <strong>6 Hardware Assets</strong>.
+                  </p>
+                  <span className="ob-sample-path-hint">
+                    Located in workspace: <code>UniSora_PRO_Sample_Onboarding.xlsx</code>
+                  </span>
+                </div>
               </div>
-              <div className="ob-template-copy">
-                <strong>Download our standard onboarding template</strong>
-                <span>
-                  Includes <strong>Company</strong>, <strong>Departments</strong>, and <strong>Employees</strong> sheets with column definitions and sample data.
-                </span>
+
+              <div className="ob-sample-banner-actions">
+                <button
+                  type="button"
+                  className="ob-btn-sample-load"
+                  onClick={handleLoadSampleFile}
+                  disabled={loadingSample || excelParsing}
+                  title="Directly load and parse the sample Excel file"
+                >
+                  {loadingSample || excelParsing ? (
+                    <>
+                      <div className="ob-spinner-sm" /> Loading…
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={15} /> Load Demo Sample
+                    </>
+                  )}
+                </button>
+
+                <a
+                  href="/UniSora_PRO_Sample_Onboarding.xlsx"
+                  download="UniSora_PRO_Sample_Onboarding.xlsx"
+                  className="ob-btn-sample-dl"
+                  title="Download the full sample workbook to your computer"
+                >
+                  <Download size={14} /> Download .xlsx
+                </a>
+
+                <a
+                  href="/api/organizations/me/onboarding/excel-template"
+                  download="unisora_onboarding_template.xlsx"
+                  className="ob-link-template"
+                  title="Download an empty template with sheet definitions"
+                >
+                  Blank Template
+                </a>
               </div>
-              <a
-                href="/api/organizations/me/onboarding/excel-template"
-                download="unisora_onboarding_template.xlsx"
-                className="ob-template-btn"
-              >
-                <Download size={14} /> Download .xlsx
-              </a>
             </div>
 
             {/* Upload drop zone */}
@@ -404,10 +528,28 @@ export default function OnboardingPage() {
                   }}
                 />
                 <div className="ob-dropzone-icon">
-                  {excelParsing ? <div className="ob-spinner" /> : <Upload size={30} />}
+                  {excelParsing ? <div className="ob-spinner" /> : <Upload size={32} />}
                 </div>
-                <strong>{excelParsing ? "Analyzing workbook…" : "Drop your Excel workbook here"}</strong>
+                <strong>
+                  {excelParsing
+                    ? "Analyzing workbook & extracting data…"
+                    : "Drop your company Excel workbook here"}
+                </strong>
                 <span>or click to browse your computer</span>
+                <div className="ob-dropzone-features">
+                  <span className="ob-feature-chip">
+                    <Building2 size={12} /> Company Info
+                  </span>
+                  <span className="ob-feature-chip">
+                    <Users size={12} /> Departments
+                  </span>
+                  <span className="ob-feature-chip">
+                    <UserCheck size={12} /> Employees
+                  </span>
+                  <span className="ob-feature-chip">
+                    <Laptop size={12} /> IT Hardware Assets
+                  </span>
+                </div>
                 <span className="ob-dropzone-hint">Supports .xlsx up to 10 MB</span>
               </div>
             )}
@@ -422,22 +564,36 @@ export default function OnboardingPage() {
             {/* Preview of parsed data */}
             {excelPreview && (
               <div className="ob-preview">
+                {/* Header bar */}
                 <div className="ob-preview-header">
                   <div className="ob-preview-file">
                     <FileSpreadsheet size={18} className="ob-file-icon" />
-                    <strong>{excelFile?.name}</strong>
-                    <span className="ob-badge-success">Ready to review</span>
+                    <strong>{excelFile?.name || "UniSora_PRO_Sample_Onboarding.xlsx"}</strong>
+                    <span className="ob-badge-success">
+                      <CheckCircle2 size={12} style={{ display: "inline", marginRight: 4 }} />
+                      Parsed &amp; Validated
+                    </span>
                   </div>
-                  <button
-                    type="button"
-                    className="ob-icon-btn"
-                    onClick={() => {
-                      setExcelPreview(null);
-                      setExcelFile(null);
-                    }}
-                  >
-                    <RefreshCw size={13} /> Change file
-                  </button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="ob-icon-btn"
+                      onClick={handleLoadSampleFile}
+                      disabled={loadingSample || excelParsing}
+                    >
+                      <Zap size={13} /> Re-load demo
+                    </button>
+                    <button
+                      type="button"
+                      className="ob-icon-btn"
+                      onClick={() => {
+                        setExcelPreview(null);
+                        setExcelFile(null);
+                      }}
+                    >
+                      <RefreshCw size={13} /> Change file
+                    </button>
+                  </div>
                 </div>
 
                 {/* Validation Errors */}
@@ -466,84 +622,430 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                {/* Company & Department Summary */}
-                {excelPreview.valid && excelPreview.company && (
-                  <div className="ob-preview-summary">
-                    <div className="ob-preview-card">
-                      <div className="ob-preview-card-title">
-                        <Building2 size={16} />
-                        <h4>Company profile</h4>
+                {/* KPI Summary Grid */}
+                <div className="ob-kpi-grid">
+                  <div className="ob-kpi-card" onClick={() => setPreviewTab("company")} style={{ cursor: "pointer" }}>
+                    <div className="ob-kpi-icon-wrap ob-kpi-icon-org">
+                      <Building2 size={20} />
+                    </div>
+                    <div>
+                      <div className="ob-kpi-val">
+                        {excelPreview.company?.company_name || excelPreview.company?.legal_name || "Company Profile"}
                       </div>
-                      <div className="ob-preview-grid">
-                        <div>
-                          <span>Legal name</span>
-                          <strong>{excelPreview.company.legal_name || excelPreview.company.company_name || "—"}</strong>
-                        </div>
-                        <div>
-                          <span>Trading name</span>
-                          <strong>{excelPreview.company.company_name || "—"}</strong>
-                        </div>
-                        <div>
-                          <span>Industry</span>
-                          <strong>{excelPreview.company.industry || "—"}</strong>
-                        </div>
-                        <div>
-                          <span>Company size</span>
-                          <strong>{excelPreview.company.company_size || "—"}</strong>
-                        </div>
-                        <div>
-                          <span>Country</span>
-                          <strong>{excelPreview.company.country || "—"}</strong>
-                        </div>
-                        <div>
-                          <span>Official email</span>
-                          <strong>{excelPreview.company.company_email || "—"}</strong>
-                        </div>
+                      <div className="ob-kpi-sub">
+                        {excelPreview.company?.industry || "Profile detected"}
                       </div>
                     </div>
+                  </div>
 
+                  <div className="ob-kpi-card" onClick={() => setPreviewTab("departments")} style={{ cursor: "pointer" }}>
+                    <div className="ob-kpi-icon-wrap ob-kpi-icon-dept">
+                      <Users size={20} />
+                    </div>
+                    <div>
+                      <div className="ob-kpi-val">{excelPreview.department_count} Departments</div>
+                      <div className="ob-kpi-sub">Cost centers &amp; teams</div>
+                    </div>
+                  </div>
+
+                  <div className="ob-kpi-card" onClick={() => setPreviewTab("employees")} style={{ cursor: "pointer" }}>
+                    <div className="ob-kpi-icon-wrap ob-kpi-icon-emp">
+                      <UserCheck size={20} />
+                    </div>
+                    <div>
+                      <div className="ob-kpi-val">{excelPreview.employee_count} Employees</div>
+                      <div className="ob-kpi-sub">Accounts &amp; lifecycles</div>
+                    </div>
+                  </div>
+
+                  <div className="ob-kpi-card" onClick={() => setPreviewTab("assets")} style={{ cursor: "pointer" }}>
+                    <div className="ob-kpi-icon-wrap ob-kpi-icon-asset">
+                      <Laptop size={20} />
+                    </div>
+                    <div>
+                      <div className="ob-kpi-val">{excelPreview.asset_count} IT Assets</div>
+                      <div className="ob-kpi-sub">Hardware &amp; assignments</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="ob-tab-nav">
+                  <button
+                    type="button"
+                    className={`ob-tab-btn ${previewTab === "overview" ? "ob-tab-btn-active" : ""}`}
+                    onClick={() => setPreviewTab("overview")}
+                  >
+                    <Sparkles size={15} /> Overview
+                  </button>
+                  <button
+                    type="button"
+                    className={`ob-tab-btn ${previewTab === "company" ? "ob-tab-btn-active" : ""}`}
+                    onClick={() => setPreviewTab("company")}
+                  >
+                    <Building2 size={15} /> Company Profile
+                  </button>
+                  <button
+                    type="button"
+                    className={`ob-tab-btn ${previewTab === "departments" ? "ob-tab-btn-active" : ""}`}
+                    onClick={() => setPreviewTab("departments")}
+                  >
+                    <Users size={15} /> Departments{" "}
+                    <span className="ob-tab-count">{excelPreview.department_count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`ob-tab-btn ${previewTab === "employees" ? "ob-tab-btn-active" : ""}`}
+                    onClick={() => setPreviewTab("employees")}
+                  >
+                    <UserCheck size={15} /> Employees{" "}
+                    <span className="ob-tab-count">{excelPreview.employee_count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`ob-tab-btn ${previewTab === "assets" ? "ob-tab-btn-active" : ""}`}
+                    onClick={() => setPreviewTab("assets")}
+                  >
+                    <Laptop size={15} /> IT Assets{" "}
+                    <span className="ob-tab-count">{excelPreview.asset_count}</span>
+                  </button>
+                </div>
+
+                {/* ==================================================== */}
+                {/* TAB 1: OVERVIEW */}
+                {/* ==================================================== */}
+                {previewTab === "overview" && (
+                  <div className="ob-preview-summary">
+                    {excelPreview.company && (
+                      <div className="ob-preview-card">
+                        <div className="ob-preview-card-title">
+                          <Building2 size={16} />
+                          <h4>Company Identity &amp; Location</h4>
+                        </div>
+                        <div className="ob-preview-grid">
+                          <div>
+                            <span>Legal entity name</span>
+                            <strong>{excelPreview.company.legal_name || "—"}</strong>
+                          </div>
+                          <div>
+                            <span>Trading / display name</span>
+                            <strong>{excelPreview.company.company_name || "—"}</strong>
+                          </div>
+                          <div>
+                            <span>Industry sector</span>
+                            <strong>{excelPreview.company.industry || "—"}</strong>
+                          </div>
+                          <div>
+                            <span>Company size</span>
+                            <strong>{excelPreview.company.company_size || "—"}</strong>
+                          </div>
+                          <div>
+                            <span>Location</span>
+                            <strong>
+                              {[excelPreview.company.city, excelPreview.company.state, excelPreview.company.country]
+                                .filter(Boolean)
+                                .join(", ") || "—"}
+                            </strong>
+                          </div>
+                          <div>
+                            <span>Primary contact</span>
+                            <strong>{excelPreview.company.company_email || "—"}</strong>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Departments Summary Card */}
                     <div className="ob-preview-card">
                       <div className="ob-preview-card-title">
                         <Users size={16} />
                         <h4>
-                          Departments{" "}
-                          <span className="ob-preview-count">
-                            {excelPreview.department_count}
-                          </span>
+                          Departments ({excelPreview.department_count})
                         </h4>
                       </div>
-                      {excelPreview.departments.length === 0 ? (
-                        <p className="ob-preview-empty">No departments found in sheet.</p>
-                      ) : (
-                        <div className="ob-preview-chips">
-                          {excelPreview.departments.map((dept, i) => (
-                            <span key={i} className="ob-preview-chip">
-                              {dept.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <div className="ob-preview-chips">
+                        {excelPreview.departments.map((dept, i) => (
+                          <span key={i} className="ob-preview-chip">
+                            {dept.name}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
+                    {/* Employees Summary Card */}
                     {excelPreview.employee_count > 0 && (
                       <div className="ob-preview-card">
                         <div className="ob-preview-card-title">
                           <UserCheck size={16} />
                           <h4>
-                            Employees in sheet{" "}
-                            <span className="ob-preview-count">
-                              {excelPreview.employee_count}
-                            </span>
+                            Staff Members ({excelPreview.employee_count} detected)
                           </h4>
                         </div>
-                        <p className="ob-preview-note">
-                          {excelPreview.employee_count} employee records detected. Departments will be created now, and employee accounts can be added from the Employees directory once setup is complete.
+                        <p className="ob-preview-note" style={{ marginBottom: 12 }}>
+                          Initial user accounts and lifecycle entries will be provisioned directly into your workspace.
                         </p>
+                        <div className="ob-preview-chips">
+                          {excelPreview.employees.slice(0, 6).map((emp, i) => (
+                            <span key={i} className="ob-feature-chip">
+                              <strong>{emp.full_name}</strong> ({emp.department_name || "General"})
+                            </span>
+                          ))}
+                          {excelPreview.employees.length > 6 && (
+                            <span className="ob-preview-count">+{excelPreview.employees.length - 6} more</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* IT Assets Summary Card */}
+                    {excelPreview.asset_count > 0 && (
+                      <div className="ob-preview-card">
+                        <div className="ob-preview-card-title">
+                          <Laptop size={16} />
+                          <h4>
+                            Hardware Assets ({excelPreview.asset_count} detected)
+                          </h4>
+                        </div>
+                        <p className="ob-preview-note" style={{ marginBottom: 12 }}>
+                          Devices will be added to your IT asset inventory and automatically linked to their assigned staff members.
+                        </p>
+                        <div className="ob-preview-chips">
+                          {excelPreview.assets.slice(0, 6).map((asset, i) => (
+                            <span key={i} className="ob-feature-chip">
+                              <Tag size={11} style={{ marginRight: 4 }} />
+                              <strong>{asset.asset_tag}</strong>: {asset.name}
+                            </span>
+                          ))}
+                          {excelPreview.assets.length > 6 && (
+                            <span className="ob-preview-count">+{excelPreview.assets.length - 6} more</span>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
 
+                {/* ==================================================== */}
+                {/* TAB 2: COMPANY PROFILE */}
+                {/* ==================================================== */}
+                {previewTab === "company" && excelPreview.company && (
+                  <div className="ob-preview-card">
+                    <div className="ob-preview-card-title">
+                      <Building2 size={16} />
+                      <h4>Extracted Company Profile</h4>
+                    </div>
+                    <div className="ob-preview-grid">
+                      <div>
+                        <span>Legal name</span>
+                        <strong>{excelPreview.company.legal_name || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Display / brand name</span>
+                        <strong>{excelPreview.company.company_name || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Industry sector</span>
+                        <strong>{excelPreview.company.industry || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Organization size</span>
+                        <strong>{excelPreview.company.company_size || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Official email</span>
+                        <strong>{excelPreview.company.company_email || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Telephone number</span>
+                        <strong>{excelPreview.company.company_phone || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Website</span>
+                        <strong>
+                          {excelPreview.company.website ? (
+                            <a
+                              href={excelPreview.company.website}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ color: "#059669" }}
+                            >
+                              {excelPreview.company.website}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Tax / VAT registration number</span>
+                        <strong>{excelPreview.company.tax_registration_number || "—"}</strong>
+                      </div>
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <span>Headquarters address</span>
+                        <strong>
+                          {[
+                            excelPreview.company.address,
+                            excelPreview.company.city,
+                            excelPreview.company.state,
+                            excelPreview.company.postal_code,
+                            excelPreview.company.country,
+                          ]
+                            .filter(Boolean)
+                            .join(", ") || "—"}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ==================================================== */}
+                {/* TAB 3: DEPARTMENTS */}
+                {/* ==================================================== */}
+                {previewTab === "departments" && (
+                  <div className="ob-card-grid-depts">
+                    {excelPreview.departments.map((dept, i) => {
+                      const empCount = excelPreview.employees.filter(
+                        (e) => e.department_name?.toLowerCase() === dept.name.toLowerCase()
+                      ).length;
+                      return (
+                        <div key={i} className="ob-dept-box">
+                          <div className="ob-dept-box-top">
+                            <h4>{dept.name}</h4>
+                            <span className="ob-badge-dept">
+                              {empCount} {empCount === 1 ? "member" : "members"}
+                            </span>
+                          </div>
+                          <p>{dept.description || "Active department unit."}</p>
+                          <div className="ob-dept-box-meta">
+                            <span>Auto-provisions in workspace</span>
+                            <span style={{ color: "#059669", fontWeight: 600 }}>Active</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ==================================================== */}
+                {/* TAB 4: EMPLOYEES */}
+                {/* ==================================================== */}
+                {previewTab === "employees" && (
+                  <div className="ob-table-wrapper">
+                    <table className="ob-data-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Employee Name</th>
+                          <th>Work Email</th>
+                          <th>Department</th>
+                          <th>Contact Phone</th>
+                          <th>Joining Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {excelPreview.employees.map((emp, i) => {
+                          const initials = emp.full_name
+                            .split(" ")
+                            .map((p) => p[0])
+                            .slice(0, 2)
+                            .join("")
+                            .toUpperCase();
+                          return (
+                            <tr key={i}>
+                              <td>
+                                <span className="ob-tag-id">{emp.employee_id || `EMP-${100 + i}`}</span>
+                              </td>
+                              <td>
+                                <div className="ob-user-cell">
+                                  <div className="ob-avatar">{initials}</div>
+                                  <strong>{emp.full_name}</strong>
+                                </div>
+                              </td>
+                              <td style={{ color: "#059669", fontWeight: 500 }}>{emp.email}</td>
+                              <td>
+                                <span className="ob-badge-dept">{emp.department_name || "General"}</span>
+                              </td>
+                              <td>{emp.phone_number || "—"}</td>
+                              <td>{emp.joining_date ? String(emp.joining_date).slice(0, 10) : "Today"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* ==================================================== */}
+                {/* TAB 5: IT HARDWARE ASSETS */}
+                {/* ==================================================== */}
+                {previewTab === "assets" && (
+                  <div className="ob-table-wrapper">
+                    <table className="ob-data-table">
+                      <thead>
+                        <tr>
+                          <th>Asset Tag</th>
+                          <th>Hardware / Device Name</th>
+                          <th>Type</th>
+                          <th>Model &amp; Serial</th>
+                          <th>Cost</th>
+                          <th>Assigned User</th>
+                          <th>Location</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {excelPreview.assets.map((asset, i) => (
+                          <tr key={i}>
+                            <td>
+                              <span className="ob-tag-id">{asset.asset_tag}</span>
+                            </td>
+                            <td>
+                              <strong>{asset.name}</strong>
+                            </td>
+                            <td>
+                              <span className="ob-badge-type">{asset.asset_type || "Hardware"}</span>
+                            </td>
+                            <td style={{ fontSize: 12, color: "#64748b" }}>
+                              {asset.model || "—"}
+                              {asset.serial_number && (
+                                <span style={{ display: "block", color: "#94a3b8", fontFamily: "monospace" }}>
+                                  S/N: {asset.serial_number}
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ fontWeight: 600 }}>
+                              {asset.purchase_cost
+                                ? `$${Number(asset.purchase_cost).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${asset.currency || "USD"}`
+                                : "—"}
+                            </td>
+                            <td>
+                              {asset.assigned_to ? (
+                                <span className="ob-badge-assigned">
+                                  <UserCheck size={12} /> {asset.assigned_to}
+                                </span>
+                              ) : (
+                                <span className="ob-badge-available">In Inventory</span>
+                              )}
+                            </td>
+                            <td>{asset.location || "Headquarters"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Callout Summary */}
+                <div className="ob-provision-callout">
+                  <Sparkles size={20} color="#059669" />
+                  <div>
+                    <strong>Ready to provision:</strong> Finishing onboarding will establish your organization and initialize{" "}
+                    <strong>{excelPreview.department_count} departments</strong>,{" "}
+                    <strong>{excelPreview.employee_count} user accounts</strong>, and{" "}
+                    <strong>{excelPreview.asset_count} IT hardware assets</strong> in your workspace database.
+                  </div>
+                </div>
+
+                {/* Action Confirmation Button */}
                 {excelPreview.valid && (
                   <button
                     type="button"
@@ -553,11 +1055,11 @@ export default function OnboardingPage() {
                   >
                     {submitting ? (
                       <>
-                        <span className="ob-btn-spinner" /> Configuring workspace…
+                        <span className="ob-btn-spinner" /> Initializing workspace &amp; provisioning data…
                       </>
                     ) : (
                       <>
-                        <Check size={17} /> Confirm and finish onboarding
+                        <Check size={18} /> Confirm and finish onboarding
                       </>
                     )}
                   </button>

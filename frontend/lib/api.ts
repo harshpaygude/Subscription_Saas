@@ -663,9 +663,33 @@ export interface CompanyProfile {
   tax_registration_number?: string;
 }
 
+export interface ExcelAssetItem {
+  asset_tag: string;
+  name: string;
+  asset_type?: string;
+  manufacturer?: string | null;
+  model?: string | null;
+  serial_number?: string | null;
+  purchase_cost?: string | null;
+  currency?: string;
+  location?: string | null;
+  assigned_to?: string | null;
+}
+
+export interface ExcelEmployeeItem {
+  employee_id: string;
+  full_name: string;
+  email: string;
+  phone_number?: string | null;
+  department_name?: string | null;
+  joining_date?: string | null;
+}
+
 export interface OnboardingPayload {
   company: CompanyProfile;
   departments: DepartmentInput[];
+  employees?: ExcelEmployeeItem[];
+  assets?: ExcelAssetItem[];
 }
 
 export interface ExcelImportResult {
@@ -686,18 +710,13 @@ export interface ExcelImportResult {
     tax_registration_number?: string | null;
   } | null;
   departments: DepartmentInput[];
-  employees: Array<{
-    employee_id: string;
-    full_name: string;
-    email: string;
-    phone_number?: string | null;
-    department_name?: string | null;
-    joining_date?: string | null;
-  }>;
+  employees: ExcelEmployeeItem[];
+  assets: ExcelAssetItem[];
   errors: string[];
   warnings: string[];
   department_count: number;
   employee_count: number;
+  asset_count: number;
 }
 
 export async function getOnboardingStatus(): Promise<OnboardingStatus> {

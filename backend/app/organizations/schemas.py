@@ -29,9 +29,33 @@ class DepartmentInput(BaseModel):
     description: Optional[str] = Field(default=None, max_length=2000)
 
 
+class EmployeeInput(BaseModel):
+    employee_id: str = Field(..., min_length=1, max_length=80)
+    full_name: str = Field(..., min_length=1, max_length=255)
+    email: str = Field(..., min_length=3, max_length=255)
+    phone_number: Optional[str] = None
+    department_name: Optional[str] = None
+    joining_date: Optional[str] = None
+
+
+class AssetInput(BaseModel):
+    asset_tag: str = Field(..., min_length=1, max_length=120)
+    name: str = Field(..., min_length=1, max_length=255)
+    asset_type: str = Field(default="Laptop", max_length=80)
+    manufacturer: Optional[str] = Field(default=None, max_length=120)
+    model: Optional[str] = Field(default=None, max_length=120)
+    serial_number: Optional[str] = Field(default=None, max_length=160)
+    purchase_cost: Optional[str] = None
+    currency: Optional[str] = Field(default="USD", max_length=3)
+    location: Optional[str] = Field(default=None, max_length=255)
+    assigned_to: Optional[str] = Field(default=None, max_length=255)
+
+
 class OnboardingSubmit(BaseModel):
     company: OrganizationProfileUpdate
     departments: list[DepartmentInput] = Field(default_factory=list)
+    employees: list[EmployeeInput] = Field(default_factory=list)
+    assets: list[AssetInput] = Field(default_factory=list)
 
 
 class OrganizationResponse(BaseModel):
