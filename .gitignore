@@ -35,5 +35,11 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite3
 
+# Next.js agent helper files
+AGENTS.md
+CLAUDE.md
+**/AGENTS.md
+**/CLAUDE.md
+
 # Docker
 postgres_data/
