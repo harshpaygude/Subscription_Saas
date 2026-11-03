@@ -99,6 +99,12 @@ def _cell_str(cell: Any) -> str | None:
     return v if v else None
 
 
+def _normalize_header(h: Any) -> str:
+    if h is None:
+        return ""
+    return str(h).strip().lower().replace(" ", "_").replace("-", "_")
+
+
 def parse_excel_workbook(content: bytes) -> ImportPreview:
     if not HAS_OPENPYXL:
         preview = ImportPreview()
@@ -129,7 +135,12 @@ def parse_excel_workbook(content: bytes) -> ImportPreview:
             preview.errors.append("Company sheet must have a header row and at least one data row.")
             preview.valid = False
         else:
-            headers = [str(h).strip().lower() if h is not None else "" for h in rows[0]]
+            headers = [_normalize_header(h) for h in rows[0]]
+            # Fallback aliases for company header
+            headers = [
+                "company_name" if h in ("name", "organization", "organization_name", "company") else h
+                for h in headers
+            ]
             missing = REQUIRED_COMPANY_COLS - set(headers)
             if missing:
                 preview.errors.append(f"Company sheet is missing required columns: {', '.join(sorted(missing))}")
@@ -168,7 +179,11 @@ def parse_excel_workbook(content: bytes) -> ImportPreview:
         if len(rows) < 2:
             preview.warnings.append("Departments sheet has no data rows.")
         else:
-            headers = [str(h).strip().lower() if h is not None else "" for h in rows[0]]
+            headers = [_normalize_header(h) for h in rows[0]]
+            headers = [
+                "department_name" if h in ("name", "department", "dept_name", "dept") else h
+                for h in headers
+            ]
             missing = REQUIRED_DEPT_COLS - set(headers)
             if missing:
                 preview.errors.append(f"Departments sheet is missing required columns: {', '.join(sorted(missing))}")
@@ -195,14 +210,14 @@ def parse_excel_workbook(content: bytes) -> ImportPreview:
         ws = wb[sheet_names_lower[emp_key]]
         rows = list(ws.iter_rows(values_only=True))
         if len(rows) >= 2:
-            headers = [str(h).strip().lower() if h is not None else "" for h in rows[0]]
+            headers = [_normalize_header(h) for h in rows[0]]
             seen_ids: set[str] = set()
             seen_emails: set[str] = set()
             for idx, row in enumerate(rows[1:], start=2):
                 row_dict = {headers[i]: _cell_str(row[i]) for i in range(len(headers))}
-                emp_id = row_dict.get("employee_id")
-                email = row_dict.get("email")
-                name = row_dict.get("full_name") or row_dict.get("name")
+                emp_id = row_dict.get("employee_id") or row_dict.get("id") or row_dict.get("emp_id")
+                email = row_dict.get("email") or row_dict.get("work_email") or row_dict.get("email_address")
+                name = row_dict.get("full_name") or row_dict.get("name") or row_dict.get("employee_name")
                 if not emp_id and not email and not name:
                     continue
                 if not emp_id or not email or not name:
@@ -220,9 +235,9 @@ def parse_excel_workbook(content: bytes) -> ImportPreview:
                     employee_id=emp_id,
                     full_name=name,
                     email=email,
-                    phone_number=row_dict.get("phone_number"),
-                    department_name=row_dict.get("department_name"),
-                    joining_date=row_dict.get("joining_date"),
+                    phone_number=row_dict.get("phone_number") or row_dict.get("phone"),
+                    department_name=row_dict.get("department_name") or row_dict.get("department"),
+                    joining_date=row_dict.get("joining_date") or row_dict.get("join_date"),
                 ))
 
     # ── 4. IT Assets sheet (optional) ──────────────────────────────────────────
@@ -231,12 +246,12 @@ def parse_excel_workbook(content: bytes) -> ImportPreview:
         ws = wb[sheet_names_lower[asset_key]]
         rows = list(ws.iter_rows(values_only=True))
         if len(rows) >= 2:
-            headers = [str(h).strip().lower() if h is not None else "" for h in rows[0]]
+            headers = [_normalize_header(h) for h in rows[0]]
             seen_tags: set[str] = set()
             for idx, row in enumerate(rows[1:], start=2):
                 row_dict = {headers[i]: _cell_str(row[i]) for i in range(len(headers))}
-                tag = row_dict.get("asset_tag") or row_dict.get("tag")
-                name = row_dict.get("name") or row_dict.get("asset_name") or row_dict.get("device_name")
+                tag = row_dict.get("asset_tag") or row_dict.get("tag") or row_dict.get("asset_id")
+                name = row_dict.get("name") or row_dict.get("asset_name") or row_dict.get("device_name") or row_dict.get("model")
                 if not tag and not name:
                     continue
                 if not tag or not name:

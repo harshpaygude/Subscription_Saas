@@ -189,15 +189,39 @@ async def submit_onboarding(
     # 3. Create employees if provided
     created_users: dict[str, User] = {}
     for emp in payload.employees:
-        email_clean = str(emp.email).strip().lower()
+        raw_email = str(emp.email).strip().lower()
+        if not raw_email:
+            continue
+
+        # Check if user already exists for THIS organization
         existing_user = (
             db.query(User)
-            .filter(User.organization_id == org.id, User.email.ilike(email_clean))
+            .filter(User.organization_id == org.id, User.email.ilike(raw_email))
             .first()
         )
+        if not existing_user and emp.employee_id:
+            existing_user = (
+                db.query(User)
+                .filter(User.organization_id == org.id, User.employee_id == emp.employee_id.strip())
+                .first()
+            )
+
         if not existing_user:
+            # Check global collision on User.email across all organizations
+            email_to_assign = raw_email
+            global_collision = db.query(User).filter(User.email.ilike(email_to_assign)).first()
+            if global_collision:
+                # Disambiguate email for this organization workspace to avoid unique constraint conflict
+                base_local, domain = raw_email.split("@", 1) if "@" in raw_email else (raw_email, "company.com")
+                candidate = f"{base_local}+{org.id}@{domain}"
+                suffix = 1
+                while db.query(User).filter(User.email.ilike(candidate)).first():
+                    candidate = f"{base_local}+{org.id}.{suffix}@{domain}"
+                    suffix += 1
+                email_to_assign = candidate
+
             emp_user = User(
-                email=email_clean,
+                email=email_to_assign,
                 display_name=emp.full_name.strip(),
                 employee_id=emp.employee_id.strip() if emp.employee_id else None,
                 phone_number=emp.phone_number.strip() if emp.phone_number else None,
@@ -207,7 +231,10 @@ async def submit_onboarding(
             )
             db.add(emp_user)
             db.flush()
-            created_users[email_clean] = emp_user
+
+            # Map raw email, assigned email, and employee ID so asset assignments succeed
+            created_users[raw_email] = emp_user
+            created_users[email_to_assign] = emp_user
             if emp.employee_id:
                 created_users[emp.employee_id.strip().lower()] = emp_user
 
@@ -219,30 +246,50 @@ async def submit_onboarding(
                 except Exception:
                     pass
 
-            # Create lifecycle record
-            db.add(
-                EmployeeLifecycle(
-                    organization_id=org.id,
-                    user_id=emp_user.id,
-                    status="ACTIVE",
-                    joined_at=effective_date,
+            # Create lifecycle record if not already present
+            existing_lc = (
+                db.query(EmployeeLifecycle)
+                .filter(
+                    EmployeeLifecycle.organization_id == org.id,
+                    EmployeeLifecycle.user_id == emp_user.id,
                 )
+                .first()
             )
+            if not existing_lc:
+                db.add(
+                    EmployeeLifecycle(
+                        organization_id=org.id,
+                        user_id=emp_user.id,
+                        status="ACTIVE",
+                        joined_at=effective_date,
+                    )
+                )
 
-            # Assign department membership if matching
+            # Assign department membership if matching and not already present
             if emp.department_name:
                 dept_match = dept_map.get(emp.department_name.strip().lower())
                 if dept_match:
-                    db.add(
-                        DepartmentMembership(
-                            organization_id=org.id,
-                            department_id=dept_match.id,
-                            user_id=emp_user.id,
-                            effective_from=effective_date,
+                    existing_dm = (
+                        db.query(DepartmentMembership)
+                        .filter(
+                            DepartmentMembership.organization_id == org.id,
+                            DepartmentMembership.department_id == dept_match.id,
+                            DepartmentMembership.user_id == emp_user.id,
                         )
+                        .first()
                     )
+                    if not existing_dm:
+                        db.add(
+                            DepartmentMembership(
+                                organization_id=org.id,
+                                department_id=dept_match.id,
+                                user_id=emp_user.id,
+                                effective_from=effective_date,
+                            )
+                        )
         else:
-            created_users[email_clean] = existing_user
+            created_users[raw_email] = existing_user
+            created_users[existing_user.email.lower()] = existing_user
             if existing_user.employee_id:
                 created_users[existing_user.employee_id.strip().lower()] = existing_user
 
@@ -254,6 +301,7 @@ async def submit_onboarding(
             .filter(Asset.organization_id == org.id, Asset.asset_tag == tag_clean)
             .first()
         )
+        target_asset = existing_asset
         if not existing_asset:
             cost_val: Optional[float] = None
             if asset_input.purchase_cost:
@@ -262,7 +310,7 @@ async def submit_onboarding(
                 except Exception:
                     pass
 
-            new_asset = Asset(
+            target_asset = Asset(
                 organization_id=org.id,
                 asset_tag=tag_clean,
                 name=asset_input.name.strip(),
@@ -275,28 +323,39 @@ async def submit_onboarding(
                 location=asset_input.location.strip() if asset_input.location else None,
                 status="AVAILABLE",
             )
-            db.add(new_asset)
+            db.add(target_asset)
             db.flush()
 
-            # Assign to employee if assigned_to specified
-            if asset_input.assigned_to:
-                target_key = asset_input.assigned_to.strip().lower()
-                target_user = created_users.get(target_key)
-                if not target_user:
-                    target_user = (
-                        db.query(User)
-                        .filter(
-                            User.organization_id == org.id,
-                            (User.email.ilike(target_key)) | (User.employee_id == target_key),
-                        )
-                        .first()
+        # Assign to employee if assigned_to specified
+        if asset_input.assigned_to and target_asset:
+            target_key = asset_input.assigned_to.strip().lower()
+            target_user = created_users.get(target_key)
+            if not target_user:
+                target_user = (
+                    db.query(User)
+                    .filter(
+                        User.organization_id == org.id,
+                        (User.email.ilike(target_key)) | (User.employee_id == target_key),
                     )
-                if target_user:
-                    new_asset.status = "ASSIGNED"
+                    .first()
+                )
+            if target_user:
+                target_asset.status = "ASSIGNED"
+                existing_assignment = (
+                    db.query(AssetAssignment)
+                    .filter(
+                        AssetAssignment.organization_id == org.id,
+                        AssetAssignment.asset_id == target_asset.id,
+                        AssetAssignment.user_id == target_user.id,
+                        AssetAssignment.status == "ACTIVE",
+                    )
+                    .first()
+                )
+                if not existing_assignment:
                     db.add(
                         AssetAssignment(
                             organization_id=org.id,
-                            asset_id=new_asset.id,
+                            asset_id=target_asset.id,
                             user_id=target_user.id,
                             assigned_by=current_user.id,
                             status="ACTIVE",
