@@ -122,14 +122,184 @@ export default function IntegrationsPage() {
     finally { setBusy(false); }
   }
 
-  return <DashboardFrame title="All services" description="Connect, verify, and manage the services in your workspace." onAddIntegration={() => setWizardOpen(true)}>
-    {notice && <div className="hub-notice" role="status">{notice}</div>}
-    <section className="hub-section"><div className="hub-section-heading"><div><p className="hub-eyebrow">Provider catalog</p><h2>Integrations</h2><p>{providerRegistry.length} providers are catalogued. Only backend-confirmed connections show as connected.</p></div><button className="hub-primary-button small" onClick={() => setWizardOpen(true)}>Add integration</button></div><IntegrationFilters search={search} category={category} status={status} onSearchChange={setSearch} onCategoryChange={setCategory} onStatusChange={setStatus} /><div className="hub-integration-grid">{providers.map((provider) => <IntegrationCard key={provider.id} provider={provider} connections={byProvider[provider.id]} onConnect={(selected) => { setWizardProvider(selected); setWizardOpen(true); }} onDisconnect={disconnect} onTest={provider.availability === "available" && provider.id !== "aws" ? test : undefined} onView={viewDetails} />)}</div></section>
-    <AddIntegrationWizard open={wizardOpen} initialProvider={wizardProvider} connections={aws} connectedProviderIds={Object.entries(byProvider).filter(([, items]) => items.length > 0).map(([id]) => id)} busy={busy} error={error} onClose={closeWizard} onSubmitAWS={(credentials: AWSConnectionCredentials) => submit(async () => { const result = await connectAWS(credentials); setAws((items) => [result.connection, ...items.filter((item) => item.id !== result.connection.id)]); }, "AWS connected successfully.")} onSubmitOpenAI={(key) => submit(async () => { const result = await connectOpenAI(key); setOpenai((items) => [result.connection, ...items.filter((item) => item.id !== result.connection.id)]); }, "OpenAI connected successfully.")} onSubmitGemini={(key) => submit(async () => { const result = await connectGemini(key); setGemini((items) => [result.connection, ...items.filter((item) => item.id !== result.connection.id)]); }, "Gemini connected successfully.")} onSubmitAzure={(credentials) => submit(async () => { const result = await connectAzureServicePrincipal(credentials); setAzure([result]); }, "Azure connected successfully.")} onSubmitAnthropic={(key, model, name) => submit(async () => { const result = await connectAnthropic(key, model, name); setAnthropic((items) => [result.connection, ...items.filter((item) => item.id !== result.connection.id)]); }, "Anthropic Claude connected successfully.")} onSubmitManual={(provider, payload) => submit(async () => { await createSubscription({ provider: provider.name, name: payload.name, plan: payload.plan || null, amount: payload.amount || null, currency: payload.currency, billing_interval: payload.billing_interval, start_date: new Date().toISOString().slice(0, 10), next_renewal_date: payload.next_renewal_date || null, note: `Manual service record created from the ${provider.name} catalog.` }); }, `${wizardProvider?.name || "Service"} tracked successfully.`)} />
-    {awsDetails && <IntegrationDetails provider={getProvider("aws")!} connection={awsDetails} cost={awsCost} plan={awsPlan} planError={awsPlanError} busy={busy} onClose={closeDetails} onLoadCosts={() => void loadAwsCost()} onRefreshPlan={() => void loadAwsPlan(awsDetails.id)} />}
-    {openaiDetails && <OpenAIUsageDetails provider={getProvider("openai")!} connection={openaiDetails} onClose={closeDetails} />}
-    {geminiDetails && <GeminiUsageDetails provider={getProvider("gemini")!} connection={geminiDetails} onClose={closeDetails} />}
-    {azureDetails && <AzureIntegrationDetails provider={getProvider("azure")!} connection={azureDetails} onClose={closeDetails} />}
-    {anthropicDetails && <AnthropicIntegrationDetails provider={getProvider("anthropic")!} connection={anthropicDetails} onClose={closeDetails} onConnectionChange={(updated) => { setAnthropic((items) => items.map((item) => item.id === updated.id ? updated : item)); setAnthropicDetails(updated); }} />}
-  </DashboardFrame>;
+  return (
+    <DashboardFrame
+      title="All services"
+      description="Connect, verify, and manage the services in your workspace."
+      onAddIntegration={() => setWizardOpen(true)}
+    >
+      {notice && (
+        <div className="hub-notice" role="status">
+          {notice}
+        </div>
+      )}
+
+      <section className="hub-section">
+        <div className="hub-section-heading">
+          <div>
+            <p className="hub-eyebrow">PROVIDER CATALOG</p>
+            <h2>Integrations</h2>
+            <p>
+              {providerRegistry.length} providers are catalogued. Only backend-confirmed
+              connections show as connected.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="hub-primary-button"
+            onClick={() => setWizardOpen(true)}
+          >
+            Add integration
+          </button>
+        </div>
+
+        <IntegrationFilters
+          search={search}
+          category={category}
+          status={status}
+          onSearchChange={setSearch}
+          onCategoryChange={setCategory}
+          onStatusChange={setStatus}
+        />
+
+        <div className="hub-integration-grid">
+          {providers.map((provider) => (
+            <IntegrationCard
+              key={provider.id}
+              provider={provider}
+              connections={byProvider[provider.id]}
+              onConnect={(selected) => {
+                setWizardProvider(selected);
+                setWizardOpen(true);
+              }}
+              onDisconnect={disconnect}
+              onTest={provider.availability === "available" && provider.id !== "aws" ? test : undefined}
+              onView={viewDetails}
+            />
+          ))}
+        </div>
+      </section>
+
+      <AddIntegrationWizard
+        open={wizardOpen}
+        initialProvider={wizardProvider}
+        connections={aws}
+        connectedProviderIds={Object.entries(byProvider)
+          .filter(([, items]) => items.length > 0)
+          .map(([id]) => id)}
+        busy={busy}
+        error={error}
+        onClose={closeWizard}
+        onSubmitAWS={(credentials: AWSConnectionCredentials) =>
+          submit(async () => {
+            const result = await connectAWS(credentials);
+            setAws((items) => [
+              result.connection,
+              ...items.filter((item) => item.id !== result.connection.id),
+            ]);
+          }, "AWS connected successfully.")
+        }
+        onSubmitOpenAI={(key) =>
+          submit(async () => {
+            const result = await connectOpenAI(key);
+            setOpenai((items) => [
+              result.connection,
+              ...items.filter((item) => item.id !== result.connection.id),
+            ]);
+          }, "OpenAI connected successfully.")
+        }
+        onSubmitGemini={(key) =>
+          submit(async () => {
+            const result = await connectGemini(key);
+            setGemini((items) => [
+              result.connection,
+              ...items.filter((item) => item.id !== result.connection.id),
+            ]);
+          }, "Gemini connected successfully.")
+        }
+        onSubmitAzure={(credentials) =>
+          submit(async () => {
+            const result = await connectAzureServicePrincipal(credentials);
+            setAzure([result]);
+          }, "Azure connected successfully.")
+        }
+        onSubmitAnthropic={(key, model, name) =>
+          submit(async () => {
+            const result = await connectAnthropic(key, model, name);
+            setAnthropic((items) => [
+              result.connection,
+              ...items.filter((item) => item.id !== result.connection.id),
+            ]);
+          }, "Anthropic Claude connected successfully.")
+        }
+        onSubmitManual={(provider, payload) =>
+          submit(async () => {
+            await createSubscription({
+              provider: provider.name,
+              name: payload.name,
+              plan: payload.plan || null,
+              amount: payload.amount || null,
+              currency: payload.currency,
+              billing_interval: payload.billing_interval,
+              start_date: new Date().toISOString().slice(0, 10),
+              next_renewal_date: payload.next_renewal_date || null,
+              note: `Manual service record created from the ${provider.name} catalog.`,
+            });
+          }, `${wizardProvider?.name || "Service"} tracked successfully.`)
+        }
+      />
+
+      {awsDetails && (
+        <IntegrationDetails
+          provider={getProvider("aws")!}
+          connection={awsDetails}
+          cost={awsCost}
+          plan={awsPlan}
+          planError={awsPlanError}
+          busy={busy}
+          onClose={closeDetails}
+          onLoadCosts={() => void loadAwsCost()}
+          onRefreshPlan={() => void loadAwsPlan(awsDetails.id)}
+        />
+      )}
+
+      {openaiDetails && (
+        <OpenAIUsageDetails
+          provider={getProvider("openai")!}
+          connection={openaiDetails}
+          onClose={closeDetails}
+        />
+      )}
+
+      {geminiDetails && (
+        <GeminiUsageDetails
+          provider={getProvider("gemini")!}
+          connection={geminiDetails}
+          onClose={closeDetails}
+        />
+      )}
+
+      {azureDetails && (
+        <AzureIntegrationDetails
+          provider={getProvider("azure")!}
+          connection={azureDetails}
+          onClose={closeDetails}
+        />
+      )}
+
+      {anthropicDetails && (
+        <AnthropicIntegrationDetails
+          provider={getProvider("anthropic")!}
+          connection={anthropicDetails}
+          onClose={closeDetails}
+          onConnectionChange={(updated) => {
+            setAnthropic((items) =>
+              items.map((item) => (item.id === updated.id ? updated : item))
+            );
+            setAnthropicDetails(updated);
+          }}
+        />
+      )}
+    </DashboardFrame>
+  );
 }

@@ -4,7 +4,6 @@ import { ArrowUpRight, CheckCircle2, Clock3, MoreHorizontal, Plug, Unplug, Refre
 import type { IntegrationConnection, ProviderDefinition } from "@/lib/integrations";
 import { categoryLabels, connectionStatus } from "@/lib/integrations";
 import { ProviderLogo } from "./ProviderLogo";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
 interface IntegrationCardProps {
   provider: ProviderDefinition;
@@ -26,37 +25,43 @@ export function IntegrationCard({
   onView,
   onTest,
 }: IntegrationCardProps) {
-  const status = connectionStatus(connections[0]);
+  const firstConnection = connections[0];
+  const status = connectionStatus(firstConnection);
   const isConnected = status === "CONNECTED";
   const isAttention = status === "ERROR" || status === "EXPIRED";
   const isAvailable = provider.availability === "available";
   const isManual = provider.availability === "manual";
+
+  const accountId = (firstConnection as { account_id?: string } | undefined)?.account_id;
+  const accountLabel = accountId ? `Account ${accountId}` : "Account Connected";
 
   return (
     <article className={`service-card ${isConnected ? "is-connected" : ""}`}>
       {/* Top Header: Logo + Status Badge */}
       <div className="service-card-header">
         <div className={`service-logo-wrap provider-${provider.icon}`}>
-          <ProviderLogo icon={provider.icon} />
+          <ProviderLogo icon={provider.icon} size={22} />
         </div>
 
         <div className="service-status-slot">
           {isConnected ? (
-            <StatusBadge variant="success" size="sm">
-              Connected
-            </StatusBadge>
+            <div className="service-status-pill is-connected">
+              <CheckCircle2 size={13} />
+              <span>Connected</span>
+            </div>
           ) : isAttention ? (
-            <StatusBadge variant="warning" size="sm">
-              {status === "EXPIRED" ? "Expired" : "Attention"}
-            </StatusBadge>
+            <div className="service-status-pill is-attention">
+              <Clock3 size={13} />
+              <span>{status === "EXPIRED" ? "Expired" : "Attention"}</span>
+            </div>
           ) : isAvailable ? (
-            <StatusBadge variant="neutral" size="sm" dot={false}>
-              Ready to connect
-            </StatusBadge>
+            <div className="service-status-pill is-not-connected">
+              <span>Not connected</span>
+            </div>
           ) : (
-            <StatusBadge variant="neutral" size="sm" dot={false}>
-              Manual tracking
-            </StatusBadge>
+            <div className="service-status-pill is-manual">
+              <span>Manual tracking</span>
+            </div>
           )}
         </div>
       </div>
@@ -83,49 +88,67 @@ export function IntegrationCard({
       {/* Card Footer Actions */}
       <div className="service-card-footer">
         {isConnected || isAttention ? (
-          <div className="footer-connected-actions">
-            {isAvailable && (
+          <div className="service-footer-connected">
+            <span className="service-account-info" title={accountLabel}>
+              {accountLabel}
+            </span>
+
+            <div className="footer-connected-actions">
+              {isAvailable && (
+                <button
+                  type="button"
+                  className="service-text-link"
+                  onClick={() => onView(provider, firstConnection)}
+                >
+                  <span>View details</span>
+                  <ArrowUpRight size={13} className="service-arrow" />
+                </button>
+              )}
+
+              {(provider.id === "openai" || provider.id === "azure" || provider.id === "anthropic") && onTest && (
+                <button
+                  type="button"
+                  className="service-text-link"
+                  onClick={() => onTest(firstConnection)}
+                  title="Test connection"
+                >
+                  <span>Test connection</span>
+                </button>
+              )}
+
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => onView(provider, connections[0])}
+                className="service-btn-disconnect"
+                onClick={() => onDisconnect(firstConnection)}
+                aria-label={`Disconnect ${provider.name}`}
+                title={`Disconnect ${provider.name}`}
               >
-                <span>Details</span>
-                <ArrowUpRight size={13} />
+                <Unplug size={14} />
               </button>
-            )}
-
-            {(provider.id === "openai" || provider.id === "azure" || provider.id === "anthropic") && onTest && (
-              <button
-                type="button"
-                className="btn btn-outline btn-sm"
-                onClick={() => onTest(connections[0])}
-                title="Test API Key Connection"
-              >
-                <RefreshCw size={13} />
-                <span>Test</span>
-              </button>
-            )}
-
+            </div>
+          </div>
+        ) : isAvailable ? (
+          <div className="service-footer-action">
             <button
               type="button"
-              className="btn btn-danger-icon btn-sm"
-              onClick={() => onDisconnect(connections[0])}
-              aria-label={`Disconnect ${provider.name}`}
-              title={`Disconnect ${provider.name}`}
+              className="hub-btn-connect"
+              onClick={() => onConnect(provider)}
             >
-              <Unplug size={15} />
+              <Plug size={14} />
+              <span>Connect</span>
             </button>
           </div>
-        ) : isAvailable || isManual ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm btn-full"
-            onClick={() => onConnect(provider)}
-          >
-            <Plug size={15} />
-            <span>{isManual ? "Track Manually" : "Connect Provider"}</span>
-          </button>
+        ) : isManual ? (
+          <div className="service-footer-action">
+            <button
+              type="button"
+              className="hub-btn-connect"
+              onClick={() => onConnect(provider)}
+            >
+              <Plug size={14} />
+              <span>Track manually</span>
+            </button>
+          </div>
         ) : (
           <span className="service-unsupported-note">
             <MoreHorizontal size={14} />
