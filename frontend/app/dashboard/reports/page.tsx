@@ -7,6 +7,7 @@ import { getAnalyticsSummary, type AnalyticsSummary } from "@/lib/api";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ExportAuditDropdown } from "@/components/dashboard/ExportAuditDropdown";
 
 export default function ReportsPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
@@ -35,15 +36,18 @@ export default function ReportsPage() {
       title="Reports & Analytics"
       description="Aggregated SaaS and cloud expenditure analysis calculated directly from verified workspace contracts and telemetry."
       actions={
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={loadData}
-          disabled={loading}
-        >
-          <RefreshCw size={14} className={loading ? "spin-animation" : ""} />
-          <span>Refresh Analytics</span>
-        </button>
+        <div className="reports-top-actions">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={loadData}
+            disabled={loading}
+          >
+            <RefreshCw size={14} className={loading ? "spin-animation" : ""} />
+            <span>Refresh Analytics</span>
+          </button>
+          <ExportAuditDropdown data={data} />
+        </div>
       }
     >
       {error && (

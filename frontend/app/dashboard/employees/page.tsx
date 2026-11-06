@@ -18,6 +18,7 @@ import {
   Laptop,
   WalletCards,
   UserCheck,
+  Upload,
 } from "lucide-react";
 import { DashboardFrame } from "@/components/dashboard/DashboardFrame";
 import {
@@ -38,6 +39,7 @@ import {
 import { MetricCard } from "@/components/ui/MetricCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ImportEmployeesModal } from "@/components/dashboard/ImportEmployeesModal";
 
 export default function EmployeeLifecyclePage() {
   const [data, setData] = useState<LifecycleDashboardRecord | null>(null);
@@ -47,6 +49,7 @@ export default function EmployeeLifecyclePage() {
   const [creating, setCreating] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showStartModal, setShowStartModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [employeeId, setEmployeeId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [joinedAt, setJoinedAt] = useState(new Date().toISOString().slice(0, 10));
@@ -181,6 +184,15 @@ export default function EmployeeLifecyclePage() {
       description="Holistic directory of team members, role assignments, IT assets in custody, and offboarding clearance."
       actions={
         <div className="flex-items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowImportModal(true)}
+            title="Import multi-service roster (CSV or Excel)"
+          >
+            <Upload size={14} />
+            <span>Import CSV</span>
+          </button>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -718,6 +730,16 @@ export default function EmployeeLifecyclePage() {
           </div>
         </div>
       )}
+
+      {/* Multi-Service Bulk CSV / Excel Import Modal */}
+      <ImportEmployeesModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          void load();
+          setNotice("Multi-service CSV import processed successfully! Employees, assets, and subscriptions have been synchronized.");
+        }}
+      />
     </DashboardFrame>
   );
 }

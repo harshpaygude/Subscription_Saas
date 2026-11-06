@@ -602,11 +602,95 @@ export async function getMonthlySpend(): Promise<MonthlySpendResponse> { return 
 export async function createManualSpend(payload: { provider: string; amount: string; currency: string; billing_interval: string; period_start: string; period_end?: string; note?: string }): Promise<SpendRow> { return apiRequest<SpendRow>("/subscriptions/manual-spend", { method: "POST", body: JSON.stringify(payload) }); }
 export interface AnalyticsSummary { active_subscriptions: number; cancelled_subscriptions: number; upcoming_renewals: number; totals_by_currency: Record<string, string>; by_provider: Record<string, { currency: string; monthly_spend: string; data_status: string }>; departments?: number; assets?: { total: number; assigned: number; available: number }; license_utilization?: number; historical: Array<{ month: string; totals_by_currency: Record<string, string> }>; historical_note: string; }
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> { return apiRequest<AnalyticsSummary>("/analytics/summary"); }
+
+export interface AuditLogItem {
+  id: number;
+  created_at: string;
+  actor_email?: string;
+  action: string;
+  entity_type: string;
+  entity_id: number;
+  details?: string | Record<string, unknown> | null;
+}
+
+export interface AuditExportResponse {
+  organization_id?: number;
+  organization_name?: string;
+  generated_at: string;
+  range_type: string;
+  start_date: string;
+  end_date: string;
+  summary: {
+    active_subscriptions: number;
+    cancelled_subscriptions: number;
+    upcoming_renewals: number;
+    totals_by_currency: Record<string, string>;
+  };
+  by_provider: Record<string, { currency: string; monthly_spend: string; data_status: string }>;
+  subscriptions?: Array<{
+    id: number;
+    provider: string;
+    currency: string;
+    amount: string;
+    billing_interval: string;
+    status: string;
+    renewal_date?: string | null;
+  }>;
+  audit_logs: AuditLogItem[];
+}
+
+export async function getAuditExport(params: {
+  range_type: "1year" | "6months" | "monthly" | "custom";
+  start_date?: string;
+  end_date?: string;
+}): Promise<AuditExportResponse> {
+  const query = new URLSearchParams();
+  query.set("range_type", params.range_type);
+  if (params.start_date) query.set("start_date", params.start_date);
+  if (params.end_date) query.set("end_date", params.end_date);
+  return apiRequest<AuditExportResponse>(`/analytics/audit-export?${query.toString()}`);
+}
 export interface DepartmentRecord { id: number; organization_id: number; name: string; description: string | null; is_active: boolean; created_at: string; updated_at: string; }
 export interface MembershipRecord { id: number; organization_id: number; department_id: number; user_id: number; is_active: boolean; effective_from: string; effective_to: string | null; created_at: string; email: string | null; display_name: string | null; }
 export interface EmployeeRecord { id: number; email: string; display_name: string | null; employee_id: string | null; phone_number: string | null; role: string; department_ids: number[]; active_subscription_assignments: number; active_asset_assignments: number; }
 export async function listEmployees(): Promise<EmployeeRecord[]> { return apiRequest<EmployeeRecord[]>("/employees"); }
 export async function createEmployee(payload: { employee_id: string; name: string; email: string; phone_number?: string; department_id: number; joined_at: string; asset_ids: number[] }): Promise<EmployeeRecord> { return apiRequest<EmployeeRecord>("/employees", { method: "POST", body: JSON.stringify(payload) }); }
+
+export interface BulkImportResult {
+  success: boolean;
+  message: string;
+  created_employees: number;
+  updated_employees: number;
+  created_assets: number;
+  assigned_assets: number;
+  assigned_subscriptions: number;
+  total_processed: number;
+}
+
+export async function importEmployeesCSV(file: File): Promise<BulkImportResult> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const url = `${API_URL}/employees/import-csv`;
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.detail || `Import failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
 export async function listDepartments(): Promise<DepartmentRecord[]> { return apiRequest<DepartmentRecord[]>("/departments"); }
 export async function createDepartment(payload: { name: string; description?: string }): Promise<DepartmentRecord> { return apiRequest<DepartmentRecord>("/departments", { method: "POST", body: JSON.stringify(payload) }); }
 export async function updateDepartment(id: number, payload: Partial<{ name: string; description: string; is_active: boolean }>): Promise<DepartmentRecord> { return apiRequest<DepartmentRecord>(`/departments/${id}`, { method: "PATCH", body: JSON.stringify(payload) }); }

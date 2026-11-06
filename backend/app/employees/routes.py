@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,7 @@ from app.auth.security import hash_password
 from app.database.models import Asset, AssetAssignment, Department, DepartmentMembership, EmployeeLifecycle, SubscriptionAssignment, User
 from app.database.session import get_db
 from app.employees.schemas import EmployeeCreate, EmployeeDetail, EmployeeSummary
+from app.employees.csv_import import process_bulk_import
 from app.audit.service import record_audit
 import secrets
 
@@ -66,4 +67,28 @@ def get_employee(employee_id: int, db: Session = Depends(get_db), current_user: 
     if not employee: raise HTTPException(404, "Employee not found.")
     summary = employee_summary(db, current_user, employee)
     return EmployeeDetail(**summary.model_dump(), created_at=employee.created_at)
+
+
+@router.post("/import-csv")
+async def import_employees_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    require_admin(current_user)
+    if not file.filename:
+        raise HTTPException(400, "No file uploaded.")
+    fname = file.filename.lower()
+    if not (fname.endswith(".csv") or fname.endswith(".xlsx") or fname.endswith(".xls")):
+        raise HTTPException(400, "Invalid file format. Please upload a CSV (.csv) or Excel (.xlsx, .xls) file.")
+    content = await file.read()
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(413, "File exceeds maximum size limit of 15 MB.")
+    try:
+        result = process_bulk_import(content, file.filename, db, current_user)
+        return result
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to import employee file: {str(e)}")
+
 
