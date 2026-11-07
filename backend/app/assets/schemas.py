@@ -68,6 +68,10 @@ class AssetAssignmentResponse(BaseModel):
     condition_at_return: Optional[str]
     handover_notes: Optional[str]
     status: str
+    user_name: Optional[str] = None
+    user_email: Optional[str] = None
+    user_employee_id: Optional[str] = None
+
 
 
 class MaintenanceCreate(BaseModel):
@@ -91,4 +95,16 @@ class MaintenanceResponse(MaintenanceCreate):
     asset_id: int
     performed_by: int
     created_at: datetime
+
+
+class AssetBulkImportResponse(BaseModel):
+    success: bool
+    message: str
+    created_assets: int
+    updated_assets: int
+    assigned_assets: int
+    employees_matched: int
+    total_processed: int
+    warnings: list[str] = []
+
 

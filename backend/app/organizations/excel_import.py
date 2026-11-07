@@ -82,11 +82,38 @@ class ParsedAsset:
 
 
 @dataclass
+class ParsedSubscription:
+    provider: str = ""
+    name: str = ""
+    plan: str | None = None
+    amount: str | None = None
+    currency: str = "USD"
+    billing_interval: str = "monthly"
+    renewal_type: str = "AUTOPAY"
+    start_date: str | None = None
+    next_renewal_date: str | None = None
+    status: str = "ACTIVE"
+    note: str | None = None
+
+
+@dataclass
+class ParsedIntegration:
+    provider_id: str = ""
+    provider_name: str = ""
+    category: str = "cloud"
+    status: str = "CONNECTED"
+    account_or_tenant_id: str | None = None
+    notes: str | None = None
+
+
+@dataclass
 class ImportPreview:
     company: ParsedCompany | None = None
     departments: list[ParsedDepartment] = field(default_factory=list)
     employees: list[ParsedEmployee] = field(default_factory=list)
     assets: list[ParsedAsset] = field(default_factory=list)
+    subscriptions: list[ParsedSubscription] = field(default_factory=list)
+    integrations: list[ParsedIntegration] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     valid: bool = True
@@ -272,6 +299,60 @@ def parse_excel_workbook(content: bytes) -> ImportPreview:
                     currency=row_dict.get("currency") or "USD",
                     location=row_dict.get("location"),
                     assigned_to=row_dict.get("assigned_to") or row_dict.get("assigned_employee"),
+                ))
+
+    # ── 5. Subscriptions sheet (optional) ──────────────────────────────────────
+    sub_key = next((k for k in sheet_names_lower if "sub" in k or "saas" in k or "software" in k), None)
+    if sub_key:
+        ws = wb[sheet_names_lower[sub_key]]
+        rows = list(ws.iter_rows(values_only=True))
+        if len(rows) >= 2:
+            headers = [_normalize_header(h) for h in rows[0]]
+            for idx, row in enumerate(rows[1:], start=2):
+                row_dict = {headers[i]: _cell_str(row[i]) for i in range(len(headers))}
+                name = row_dict.get("name") or row_dict.get("subscription_name") or row_dict.get("service")
+                provider = row_dict.get("provider") or row_dict.get("vendor") or (name.split()[0].lower() if name else "")
+                if not name:
+                    continue
+                raw_interval = row_dict.get("billing_interval") or row_dict.get("billing_cycle") or "monthly"
+                interval = "annual" if "year" in raw_interval.lower() or "annu" in raw_interval.lower() else "monthly"
+                raw_renewal_type = row_dict.get("renewal_type") or row_dict.get("autopay") or "AUTOPAY"
+                renewal_type = "MANUAL" if any(k in raw_renewal_type.lower() for k in ("man", "inv", "po", "false", "no")) else "AUTOPAY"
+                
+                preview.subscriptions.append(ParsedSubscription(
+                    provider=provider.lower().strip(),
+                    name=name.strip(),
+                    plan=row_dict.get("plan") or row_dict.get("tier"),
+                    amount=row_dict.get("amount") or row_dict.get("cost") or row_dict.get("price"),
+                    currency=(row_dict.get("currency") or "USD").upper()[:3],
+                    billing_interval=interval,
+                    renewal_type=renewal_type,
+                    start_date=row_dict.get("start_date") or row_dict.get("contract_start"),
+                    next_renewal_date=row_dict.get("next_renewal_date") or row_dict.get("renewal_date"),
+                    status=(row_dict.get("status") or "ACTIVE").upper(),
+                    note=row_dict.get("note") or row_dict.get("notes") or row_dict.get("description"),
+                ))
+
+    # ── 6. Integrations sheet (optional) ───────────────────────────────────────
+    int_key = next((k for k in sheet_names_lower if "integrat" in k or "connection" in k), None)
+    if int_key:
+        ws = wb[sheet_names_lower[int_key]]
+        rows = list(ws.iter_rows(values_only=True))
+        if len(rows) >= 2:
+            headers = [_normalize_header(h) for h in rows[0]]
+            for idx, row in enumerate(rows[1:], start=2):
+                row_dict = {headers[i]: _cell_str(row[i]) for i in range(len(headers))}
+                provider_id = row_dict.get("provider_id") or row_dict.get("provider") or row_dict.get("id")
+                provider_name = row_dict.get("provider_name") or row_dict.get("name") or provider_id
+                if not provider_id and not provider_name:
+                    continue
+                preview.integrations.append(ParsedIntegration(
+                    provider_id=(provider_id or provider_name).lower().strip(),
+                    provider_name=(provider_name or provider_id).strip(),
+                    category=row_dict.get("category") or "cloud",
+                    status=(row_dict.get("status") or "CONNECTED").upper(),
+                    account_or_tenant_id=row_dict.get("account_or_tenant_id") or row_dict.get("tenant_id") or row_dict.get("account_id"),
+                    notes=row_dict.get("notes") or row_dict.get("note") or row_dict.get("description"),
                 ))
 
     wb.close()

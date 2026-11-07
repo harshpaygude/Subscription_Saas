@@ -1,0 +1,12 @@
+provider,name,plan,amount,currency,billing_interval,renewal_type,start_date,next_renewal_date,status,seats,note
+github,GitHub Enterprise Cloud,Enterprise Cloud (50 seats),1050.00,USD,monthly,AUTOPAY,2024-01-15,2026-11-09,ACTIVE,50,Corporate Amex ending 4092. Renews tomorrow via Auto-Pay (1-day prior alert test case).
+figma,Figma Enterprise Suite,Organization & FigJam (35 seats),18000.00,USD,annual,MANUAL,2024-02-01,2026-11-09,ACTIVE,35,Manual Invoice Net-30. Purchase Order PO-2024-892 required before cutoff (1-day prior alert test case).
+slack,Slack Enterprise Grid,Enterprise Grid Tier 1 (60 seats),12500.00,USD,annual,AUTOPAY,2024-01-01,2026-12-08,ACTIVE,60,Auto-renews automatically via corporate billing profile in 30 days (1-month prior alert test case).
+datadog,Datadog APM & Infrastructure,Enterprise Pro (50 hosts + Logs),24000.00,USD,annual,MANUAL,2024-01-01,2026-12-08,ACTIVE,50,Vendor contract renewal quote and procurement sign-off required 30 days prior (1-month prior alert test case).
+openai,OpenAI ChatGPT Team & API,Team Tier 4 Usage Tier,750.00,USD,monthly,AUTOPAY,2024-03-01,2027-01-07,ACTIVE,25,Prepaid API balance auto-reload active with backup corporate card.
+google,Google Workspace Enterprise,Enterprise Plus with Gemini,7200.00,USD,annual,AUTOPAY,2024-01-15,2027-02-06,ACTIVE,65,Primary domain Google Workspace directory. Renews via Google Cloud Billing account.
+atlassian,Atlassian Jira Software & Confluence,Cloud Premium (100 users),16800.00,USD,annual,MANUAL,2024-02-15,2027-03-08,ACTIVE,100,Annual enterprise agreement invoice with authorized Atlassian partner.
+aws,AWS Business Support & Cloud Compute,Business Support Tier Plan,3200.00,USD,monthly,AUTOPAY,2024-01-01,2027-05-07,ACTIVE,15,Direct monthly cloud billing auto-debit through AWS billing console.
+microsoft,Microsoft 365 E5 Suite,Enterprise E5 Compliance Suite,21600.00,USD,annual,MANUAL,2024-02-15,2027-06-06,ACTIVE,40,Enterprise agreement with Microsoft direct reseller. Wire invoice payment.
+notion,Notion Enterprise Workspace,Enterprise Plan with Notion AI,3600.00,USD,annual,AUTOPAY,2024-03-01,2027-08-05,ACTIVE,50,Company-wide wiki and project tracker. Auto-pay on file.
+zoom,Zoom Workplace Pro,Business 50 Seats,650.00,USD,monthly,MANUAL,2023-05-01,,CANCELLED,0,Cancelled in favor of Google Meet migration.

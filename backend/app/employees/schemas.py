@@ -29,3 +29,15 @@ class EmployeeCreate(BaseModel):
     joined_at: date
     asset_ids: list[int] = Field(default_factory=list)
 
+
+class EmployeeUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
+    employee_id: Optional[str] = Field(default=None, max_length=80)
+    phone_number: Optional[str] = Field(default=None, max_length=40)
+    role: Optional[str] = Field(default=None, max_length=50)
+    department_id: Optional[int] = None
+    subscription_ids: Optional[list[int]] = None
+    asset_ids: Optional[list[int]] = None
+
+

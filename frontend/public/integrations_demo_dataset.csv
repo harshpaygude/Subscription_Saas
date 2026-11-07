@@ -1,0 +1,12 @@
+provider_id,provider_name,category,status,auth_type,environment,account_or_tenant_id,allocated_spend_limit,renewal_type,renewal_notice_window,notes
+aws,Amazon Web Services,cloud,CONNECTED,IAM Role / Access Key,Production us-east-1,arn:aws:iam::123456789012:root,"$15,000 / mo",AUTOPAY,30 days & 1 day prior,Cost Explorer and Free Tier telemetry connected.
+azure,Microsoft Azure,cloud,CONNECTED,Service Principal OAuth,Production Tenant,unisora-cloud.onmicrosoft.com,"$10,000 / mo",AUTOPAY,30 days & 1 day prior,Azure subscriptions and Resource Group spend synced.
+openai,OpenAI / ChatGPT API,ai,CONNECTED,Encrypted API Key,Tier 4 Production,org-unisora-production-ai,"$2,500 / mo",AUTOPAY,30 days & 1 day prior,"GPT-4o, o1, Text-Embedding-3 inference tracking."
+anthropic,Anthropic Claude,ai,CONNECTED,Encrypted API Key,Production API,ant-org-unisora-demo,"$2,000 / mo",AUTOPAY,30 days & 1 day prior,Claude 3.5 Sonnet and Haiku usage reporting.
+gemini,Google Gemini,ai,CONNECTED,Google AI Studio API Key,Production Project,projects/unisora-demo-studio,"$1,500 / mo",AUTOPAY,30 days & 1 day prior,Gemini 1.5 Pro and Flash token telemetry.
+google-workspace,Google Workspace,productivity,CONNECTED,OAuth 2.0 Directory,Enterprise Suite,admin@unisora.io,"$1,000 / mo",AUTOPAY,30 days & 1 day prior,65 active company user accounts and license seats.
+slack,Slack Enterprise Grid,productivity,CONNECTED,Enterprise Grid Bot Token,Primary Workspace,T09283741-unisora,"$1,200 / mo",AUTOPAY,30 days & 1 day prior,48 collaboration channels and employee accounts.
+github,GitHub Enterprise,developer,CONNECTED,GitHub App / SAML SSO,Organization Cloud,unisora-technologies,"$1,500 / mo",AUTOPAY,30 days & 1 day prior,12 private code repositories and 50 dev licenses.
+datadog,Datadog Infrastructure,cloud,CONNECTED,Application API Key,Production Observability,datadog-unisora-prod,"$3,000 / mo",MANUAL,30 days & 1 day prior,"APM, host telemetry, and container log aggregation."
+microsoft-365,Microsoft 365,productivity,DISCONNECTED,Microsoft Graph API,Secondary Tenant,m365-unisora-demo,"$2,000 / mo",MANUAL,30 days & 1 day prior,Available for connection through OAuth.
+stripe,Stripe Billing & Payments,billing,DISCONNECTED,Restricted API Key,Live Production,acct_1UnisoraProd992,N/A,MANUAL,30 days & 1 day prior,Available for invoicing and payment audit.

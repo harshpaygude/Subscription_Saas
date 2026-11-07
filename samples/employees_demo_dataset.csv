@@ -1,0 +1,7 @@
+employee_id,full_name,email,phone_number,department_name,joining_date
+EMP-101,Alex Morgan,alex.morgan@unisora.test,+1 (555) 011-2001,Engineering,2024-01-15
+EMP-102,Elena Rostova,elena.rostova@unisora.test,+1 (555) 011-2002,Product & Design,2024-02-01
+EMP-103,Marcus Vance,marcus.vance@unisora.test,+1 (555) 011-2003,Finance & Operations,2024-02-15
+EMP-104,Sarah Jenkins,sarah.jenkins@unisora.test,+1 (555) 011-2004,People Operations (HR),2024-03-01
+EMP-105,David Kim,david.kim@unisora.test,+1 (555) 011-2005,Sales & Marketing,2024-03-15
+EMP-106,Aisha Patel,aisha.patel@unisora.test,+1 (555) 011-2006,Security & Compliance,2024-04-01

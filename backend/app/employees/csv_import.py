@@ -366,7 +366,7 @@ def process_bulk_import(
                     )
 
         # ==========================================
-        # 2. PROCESS IT ASSET INFO
+        # 2. PROCESS IT ASSET INFO (1-to-Many support)
         # ==========================================
         asset_tag = _clean_str(row.get("asset_tag") or row.get("tag") or row.get("hardware_tag"))
         asset_name = _clean_str(
@@ -378,25 +378,41 @@ def process_bulk_import(
         serial_no = _clean_str(row.get("serial_number") or row.get("serial") or row.get("sn"))
         cost_raw = _clean_str(row.get("purchase_cost") or row.get("cost") or row.get("asset_cost"))
 
+        # Collect all assets on this row (primary + wide device columns for 1-to-many support)
+        row_assets: List[Tuple[str, str, str, str, str, str, str]] = []
         if asset_tag or asset_name:
-            tag_key = (asset_tag or f"AST-{secrets.token_hex(3).upper()}").lower()
+            row_assets.append((asset_tag, asset_name, asset_type, manufacturer, model, serial_no, cost_raw))
+
+        for pfx, dev_type in [("laptop", "Laptop"), ("headset", "Headset"), ("monitor", "Monitor"), ("phone", "Mobile Phone")]:
+            d_tag = _clean_str(row.get(f"{pfx}_tag") or row.get(f"{pfx}_asset_tag") or row.get(f"{pfx}_id"))
+            d_name = _clean_str(row.get(f"{pfx}_name") or row.get(f"{pfx}_model") or row.get(pfx))
+            d_mfr = _clean_str(row.get(f"{pfx}_manufacturer") or row.get(f"{pfx}_brand"))
+            d_model = _clean_str(row.get(f"{pfx}_model_number") or row.get(f"{pfx}_model"))
+            d_serial = _clean_str(row.get(f"{pfx}_serial") or row.get(f"{pfx}_serial_number") or row.get(f"{pfx}_sn"))
+            d_cost = _clean_str(row.get(f"{pfx}_cost") or row.get(f"{pfx}_price"))
+            if d_tag or d_name or d_serial:
+                if not any(a[0] and a[0].lower() == d_tag.lower() for a in row_assets if a[0]):
+                    row_assets.append((d_tag, d_name or f"{d_mfr} {d_model}".strip() or f"{dev_type} Device", dev_type, d_mfr, d_model, d_serial, d_cost))
+
+        for a_tag, a_name, a_type, a_mfr, a_model, a_sn, a_cost_raw in row_assets:
+            tag_key = (a_tag or f"AST-{secrets.token_hex(3).upper()}").lower()
             asset_obj = asset_cache.get(tag_key)
             if not asset_obj:
                 cost_num: Optional[float] = None
-                if cost_raw:
+                if a_cost_raw:
                     try:
-                        cost_num = float(cost_raw.replace("$", "").replace("₹", "").replace(",", "").strip())
+                        cost_num = float(a_cost_raw.replace("$", "").replace("₹", "").replace(",", "").strip())
                     except Exception:
                         cost_num = None
 
                 asset_obj = Asset(
                     organization_id=org_id,
-                    asset_tag=asset_tag or tag_key.upper(),
-                    name=asset_name or f"{manufacturer} {model}".strip() or "Workstation Laptop",
-                    asset_type=asset_type,
-                    manufacturer=manufacturer or None,
-                    model=model or None,
-                    serial_number=serial_no or None,
+                    asset_tag=a_tag or tag_key.upper(),
+                    name=a_name or f"{a_mfr} {a_model}".strip() or f"{a_type} Hardware",
+                    asset_type=a_type,
+                    manufacturer=a_mfr or None,
+                    model=a_model or None,
+                    serial_number=a_sn or None,
                     purchase_cost=cost_num,
                     currency="USD",
                     status="AVAILABLE",

@@ -20,8 +20,19 @@ from app.employee_lifecycle.service import complete_task, get_lifecycle_for_user
 router = APIRouter(tags=["Employee lifecycle"])
 
 
-def task_response(task: LifecycleTask) -> LifecycleTaskResponse:
-    return LifecycleTaskResponse.model_validate(task)
+def task_response(db: Session, task: LifecycleTask) -> LifecycleTaskResponse:
+    res = LifecycleTaskResponse.model_validate(task)
+    if task.task_type == "RECOVER_ASSET" and (task.title == "Recover company asset" or "Recover company asset:" not in task.title):
+        asset = None
+        if task.related_asset_id:
+            asset = db.query(Asset).filter(Asset.id == task.related_asset_id).first()
+        elif task.related_asset_assignment_id:
+            asgn = db.query(AssetAssignment).filter(AssetAssignment.id == task.related_asset_assignment_id).first()
+            if asgn:
+                asset = db.query(Asset).filter(Asset.id == asgn.asset_id).first()
+        if asset:
+            res.title = f"Recover company asset: {asset.name} ({asset.asset_tag})"
+    return res
 
 
 def employee_response(db: Session, lifecycle: EmployeeLifecycle) -> LifecycleEmployeeResponse:
@@ -47,8 +58,8 @@ def employee_response(db: Session, lifecycle: EmployeeLifecycle) -> LifecycleEmp
         department_ids=[item.department_id for item in departments],
         department_names=[department_records[item.department_id] for item in departments if item.department_id in department_records],
         subscription_assignments=[LifecycleResourceResponse(id=item.id, resource_id=item.subscription_id, status=item.status, assigned_at=item.assigned_at, released_at=item.released_at, resource_name=subscriptions.get(item.subscription_id).name if subscriptions.get(item.subscription_id) else None, resource_provider=subscriptions.get(item.subscription_id).provider if subscriptions.get(item.subscription_id) else None) for item in subscription_assignments],
-        asset_assignments=[LifecycleResourceResponse(id=item.id, resource_id=item.asset_id, status=item.status, assigned_at=item.assigned_at, released_at=item.returned_at, resource_name=assets.get(item.asset_id).name if assets.get(item.asset_id) else None) for item in asset_assignments],
-        tasks=[task_response(item) for item in tasks],
+        asset_assignments=[LifecycleResourceResponse(id=item.id, resource_id=item.asset_id, status=item.status, assigned_at=item.assigned_at, released_at=item.returned_at, resource_name=f"{assets[item.asset_id].name} ({assets[item.asset_id].asset_tag})" if assets.get(item.asset_id) else None, resource_provider=assets[item.asset_id].asset_type if assets.get(item.asset_id) else None) for item in asset_assignments],
+        tasks=[task_response(db, item) for item in tasks],
         open_task_count=sum(item.status == "OPEN" and item.required for item in tasks),
         completed_task_count=sum(item.status == "COMPLETED" for item in tasks),
     )
@@ -63,7 +74,7 @@ def lifecycle_dashboard(db: Session = Depends(get_db), current_user: User = Depe
         working=[employee_response(db, item) for item in lifecycles if item.status == "ACTIVE"],
         offboarding=[employee_response(db, item) for item in lifecycles if item.status == "OFFBOARDING"],
         completed=[employee_response(db, item) for item in lifecycles if item.status == "COMPLETED"],
-        pending_tasks=[task_response(item) for item in pending_tasks],
+        pending_tasks=[task_response(db, item) for item in pending_tasks],
     )
 
 
@@ -102,7 +113,7 @@ def begin_offboarding(user_id: int, payload: OffboardingRequest, db: Session = D
 def list_lifecycle_tasks(status_filter: str | None = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(LifecycleTask).filter(LifecycleTask.organization_id == current_user.organization_id)
     if status_filter: query = query.filter(LifecycleTask.status == status_filter.upper())
-    return query.order_by(LifecycleTask.created_at.desc()).all()
+    return [task_response(db, item) for item in query.order_by(LifecycleTask.created_at.desc()).all()]
 
 
 @router.post("/lifecycle-tasks/{task_id}/complete", response_model=LifecycleTaskResponse)
@@ -112,7 +123,7 @@ def finish_lifecycle_task(task_id: int, payload: TaskCompletionRequest, db: Sess
     if not task: raise HTTPException(404, "Lifecycle task not found.")
     try:
         complete_task(db, current_user, task, payload.completion_note)
-        db.commit(); db.refresh(task); return task
+        db.commit(); db.refresh(task); return task_response(db, task)
     except ValueError as exc:
         db.rollback(); raise HTTPException(409, str(exc))
 

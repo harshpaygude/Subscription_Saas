@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   ClipboardCheck,
   Clock,
+  Edit3,
 } from "lucide-react";
 import { DashboardFrame } from "@/components/dashboard/DashboardFrame";
 import {
@@ -27,12 +28,14 @@ import {
 } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { EditEmployeeModal } from "@/components/dashboard/EditEmployeeModal";
 
 export default function EmployeeLifecycleDetailPage() {
   const params = useParams<{ userId: string }>();
   const [employee, setEmployee] = useState<LifecycleEmployeeRecord | null>(null);
   const [lastWorkingDate, setLastWorkingDate] = useState("");
   const [offboarding, setOffboarding] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -87,11 +90,19 @@ export default function EmployeeLifecycleDetailPage() {
       title={employee?.display_name || employee?.email || "Employee Details"}
       description="Employee company profile, assigned SaaS licenses, hardware custody, and lifecycle audit history."
     >
-      <div className="mb-4">
+      <div className="mb-4" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <Link href="/dashboard/employees" className="btn btn-secondary btn-sm inline-flex">
           <ArrowLeft size={14} />
           <span>Back to Employee Directory</span>
         </Link>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm inline-flex"
+          onClick={() => setShowEditModal(true)}
+        >
+          <Edit3 size={14} />
+          <span>Edit Profile & Allocate Resources</span>
+        </button>
       </div>
 
       {notice && (
@@ -364,6 +375,17 @@ export default function EmployeeLifecycleDetailPage() {
           </section>
         </div>
       )}
+
+      {/* Edit Profile & Resource Allocation Modal */}
+      <EditEmployeeModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSuccess={() => {
+          void load();
+          setNotice("Employee profile and resource allocations updated successfully!");
+        }}
+        employee={employee}
+      />
     </DashboardFrame>
   );
 }

@@ -584,11 +584,19 @@ export async function getAnthropicReports(connectionId: number, startDate: strin
 export async function saveAnthropicManualBalance(connectionId: number, amount: string, currency: string): Promise<{ connection_id: number; balance: AnthropicReportResponse["balance"] }> { return apiRequest(`/integrations/anthropic/connections/${connectionId}/balance`, { method: "POST", body: JSON.stringify({ amount, currency }) }); }
 export async function removeAnthropicManualBalance(connectionId: number): Promise<{ message: string }> { return apiRequest<{ message: string }>(`/integrations/anthropic/connections/${connectionId}/balance`, { method: "DELETE" }); }
 
-export interface SubscriptionRecord { id: number; organization_id: number; provider: string; name: string; plan: string | null; amount: string | null; currency: string; billing_interval: string; start_date: string | null; next_renewal_date: string | null; status: string; cancellation_date: string | null; source: string; note: string | null; created_at: string; updated_at: string; }
+export interface SubscriptionRecord { id: number; organization_id: number; provider: string; name: string; plan: string | null; amount: string | null; currency: string; billing_interval: string; renewal_type: string | null; start_date: string | null; next_renewal_date: string | null; status: string; cancellation_date: string | null; source: string; note: string | null; created_at: string; updated_at: string; }
 export interface SpendRow { service: string; name: string; monthly_spend: string; currency: string; billing_source: string; billing_period: string; last_updated: string; status: string; }
 export interface MonthlySpendResponse { totals_by_currency: Record<string, string>; services: SpendRow[]; }
 export async function listSubscriptions(params: { provider?: string; status?: string } = {}): Promise<SubscriptionRecord[]> { const query = new URLSearchParams(); Object.entries(params).forEach(([key, value]) => value && query.set(key, value)); return apiRequest<SubscriptionRecord[]>(`/subscriptions${query.size ? `?${query.toString()}` : ""}`); }
-export async function createSubscription(payload: Omit<SubscriptionRecord, "id" | "organization_id" | "status" | "cancellation_date" | "source" | "created_at" | "updated_at"> & { status?: string }): Promise<SubscriptionRecord> { return apiRequest<SubscriptionRecord>("/subscriptions", { method: "POST", body: JSON.stringify(payload) }); }
+export async function createSubscription(payload: Omit<SubscriptionRecord, "id" | "organization_id" | "status" | "cancellation_date" | "source" | "created_at" | "updated_at" | "renewal_type"> & { status?: string; renewal_type?: string | null }): Promise<SubscriptionRecord> { return apiRequest<SubscriptionRecord>("/subscriptions", { method: "POST", body: JSON.stringify(payload) }); }
+export async function importSubscriptionsCSV(file: File): Promise<{ success: boolean; imported: number; updated: number; total_processed: number; errors: string[] }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return apiRequest("/subscriptions/import-csv", { method: "POST", body: formData });
+}
+export async function seedDemoSubscriptions(): Promise<{ message: string; imported: number; updated: number; total_processed: number; errors: string[] }> {
+  return apiRequest("/subscriptions/seed-demo", { method: "POST" });
+}
 export interface SubscriptionLicenseRecord { id: number; organization_id: number; subscription_id: number; reference: string | null; capacity: number; status: string; created_at: string; updated_at: string; }
 export interface SubscriptionAssignmentRecord { id: number; organization_id: number; subscription_id: number; license_id: number | null; user_id: number; assigned_by: number; assigned_at: string; released_at: string | null; status: string; notes: string | null; }
 export async function createSubscriptionLicense(subscriptionId: number, payload: { reference?: string; capacity: number }): Promise<SubscriptionLicenseRecord> { return apiRequest<SubscriptionLicenseRecord>(`/subscriptions/${subscriptionId}/licenses`, { method: "POST", body: JSON.stringify(payload) }); }
@@ -655,6 +663,25 @@ export interface MembershipRecord { id: number; organization_id: number; departm
 export interface EmployeeRecord { id: number; email: string; display_name: string | null; employee_id: string | null; phone_number: string | null; role: string; department_ids: number[]; active_subscription_assignments: number; active_asset_assignments: number; }
 export async function listEmployees(): Promise<EmployeeRecord[]> { return apiRequest<EmployeeRecord[]>("/employees"); }
 export async function createEmployee(payload: { employee_id: string; name: string; email: string; phone_number?: string; department_id: number; joined_at: string; asset_ids: number[] }): Promise<EmployeeRecord> { return apiRequest<EmployeeRecord>("/employees", { method: "POST", body: JSON.stringify(payload) }); }
+export async function updateEmployee(
+  id: number,
+  payload: {
+    name?: string;
+    email?: string;
+    employee_id?: string;
+    phone_number?: string;
+    role?: string;
+    department_id?: number;
+    subscription_ids?: number[];
+    asset_ids?: number[];
+  }
+): Promise<EmployeeRecord> {
+  return apiRequest<EmployeeRecord>(`/employees/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 
 export interface BulkImportResult {
   success: boolean;
@@ -697,7 +724,43 @@ export async function updateDepartment(id: number, payload: Partial<{ name: stri
 export async function listDepartmentMembers(id: number): Promise<MembershipRecord[]> { return apiRequest<MembershipRecord[]>(`/departments/${id}/members`); }
 export async function addDepartmentMember(id: number, user_id: number): Promise<MembershipRecord> { return apiRequest<MembershipRecord>(`/departments/${id}/members`, { method: "POST", body: JSON.stringify({ user_id }) }); }
 export interface AssetRecord { id: number; organization_id: number; asset_tag: string; asset_type: string; name: string; manufacturer: string | null; model: string | null; serial_number: string | null; purchase_date: string | null; purchase_cost: string | null; currency: string; warranty_expiry: string | null; location: string | null; status: string; created_at: string; updated_at: string; }
-export interface AssetAssignmentRecord { id: number; organization_id: number; asset_id: number; user_id: number; assigned_by: number; assigned_at: string; expected_return_at: string | null; returned_at: string | null; returned_by: number | null; condition_at_issue: string | null; condition_at_return: string | null; handover_notes: string | null; status: string; }
+export interface AssetAssignmentRecord { id: number; organization_id: number; asset_id: number; user_id: number; assigned_by: number; assigned_at: string; expected_return_at: string | null; returned_at: string | null; returned_by: number | null; condition_at_issue: string | null; condition_at_return: string | null; handover_notes: string | null; status: string; user_name?: string | null; user_email?: string | null; user_employee_id?: string | null; }
+export interface AssetBulkImportResult {
+  success: boolean;
+  message: string;
+  created_assets: number;
+  updated_assets: number;
+  assigned_assets: number;
+  employees_matched: number;
+  total_processed: number;
+  warnings?: string[];
+}
+
+export async function importAssetsCSV(file: File): Promise<AssetBulkImportResult> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const url = `${API_URL}/assets/import-csv`;
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    throw new Error(errorBody?.detail || `Import failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function listAssets(params: { status?: string; asset_type?: string } = {}): Promise<AssetRecord[]> { const query = new URLSearchParams(); Object.entries(params).forEach(([key, value]) => value && query.set(key, value)); return apiRequest<AssetRecord[]>(`/assets${query.size ? `?${query}` : ""}`); }
 export async function createAsset(payload: { asset_tag: string; asset_type: string; name: string; manufacturer?: string; model?: string; serial_number?: string; purchase_date?: string; purchase_cost?: string; currency?: string; warranty_expiry?: string; location?: string }): Promise<AssetRecord> { return apiRequest<AssetRecord>("/assets", { method: "POST", body: JSON.stringify(payload) }); }
 export async function assignAsset(id: number, payload: { user_id: number; expected_return_at?: string; condition_at_issue?: string; handover_notes?: string }): Promise<AssetAssignmentRecord> { return apiRequest<AssetAssignmentRecord>(`/assets/${id}/assignments`, { method: "POST", body: JSON.stringify(payload) }); }

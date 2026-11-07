@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import {
   Laptop,
@@ -11,6 +12,8 @@ import {
   X,
   CheckCircle2,
   HardDrive,
+  Upload,
+  Info,
 } from "lucide-react";
 import { DashboardFrame } from "@/components/dashboard/DashboardFrame";
 import {
@@ -27,6 +30,8 @@ import {
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MetricCard } from "@/components/ui/MetricCard";
+import { ImportAssetsModal } from "@/components/dashboard/ImportAssetsModal";
+import { AssetDetailModal } from "@/components/dashboard/AssetDetailModal";
 
 export default function AssetsPage() {
   const [items, setItems] = useState<AssetRecord[]>([]);
@@ -37,6 +42,8 @@ export default function AssetsPage() {
   const [saving, setSaving] = useState(false);
   const [assigning, setAssigning] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<AssetRecord | null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -160,14 +167,25 @@ export default function AssetsPage() {
       title="IT Assets"
       description="Physical device tracking, serial numbers, custody assignments, and handover logs."
       actions={
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={() => setShowAddModal(true)}
-        >
-          <Plus size={15} />
-          <span>Add Asset</span>
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowImportModal(true)}
+            title="Import IT assets roster (CSV or Excel)"
+          >
+            <Upload size={14} />
+            <span>Import CSV / Excel</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus size={15} />
+            <span>Add Asset</span>
+          </button>
+        </div>
       }
     >
       {notice && (
@@ -275,14 +293,24 @@ export default function AssetsPage() {
             title="No IT assets registered"
             description="Add company laptops, monitors, phones, and peripherals to track custody."
             action={
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowAddModal(true)}
-              >
-                <Plus size={15} />
-                <span>Add First IT Asset</span>
-              </button>
+              <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowImportModal(true)}
+                >
+                  <Upload size={14} />
+                  <span>Import CSV / Excel</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <Plus size={15} />
+                  <span>Add First IT Asset</span>
+                </button>
+              </div>
             }
           />
         ) : (
@@ -309,10 +337,18 @@ export default function AssetsPage() {
                   return (
                     <tr key={item.id}>
                       <td>
-                        <div className="flex-items-center gap-2">
+                        <div
+                          className="flex-items-center gap-2 cursor-pointer"
+                          onClick={() => setSelectedAsset(item)}
+                          title="Click to view full hardware details & employee custody history"
+                          style={{ cursor: "pointer" }}
+                        >
                           <Laptop size={16} className="table-row-icon" />
                           <div>
-                            <span className="font-semibold block text-primary">
+                            <span
+                              className="font-semibold block text-primary"
+                              style={{ textDecoration: "underline", textUnderlineOffset: 3 }}
+                            >
                               {item.asset_tag}
                             </span>
                             <span className="text-secondary text-xs">{item.name}</span>
@@ -331,9 +367,14 @@ export default function AssetsPage() {
                       <td>
                         {emp ? (
                           <div>
-                            <span className="font-medium text-primary text-xs block">
+                            <Link
+                              href={`/dashboard/employees/${emp.id}`}
+                              className="font-medium text-primary text-xs block"
+                              title="Redirect to employee profile"
+                              style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
+                            >
                               {emp.display_name || emp.email}
-                            </span>
+                            </Link>
                             <span className="text-muted text-xs">
                               {emp.employee_id ? `ID: ${emp.employee_id}` : emp.email}
                             </span>
@@ -366,22 +407,31 @@ export default function AssetsPage() {
                         </StatusBadge>
                       </td>
                       <td className="align-right">
-                        {assignment ? (
+                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            disabled={assigning === assignment.id}
-                            onClick={() => void remove(assignment.id)}
-                            title="Return device to storage"
+                            onClick={() => setSelectedAsset(item)}
+                            title="View full asset info & custody history"
                           >
-                            <RotateCcw size={13} />
-                            <span>
-                              {assigning === assignment.id ? "Returning…" : "Return"}
-                            </span>
+                            <Info size={13} />
+                            <span>View Info</span>
                           </button>
-                        ) : (
-                          <span className="text-muted text-xs">—</span>
-                        )}
+                          {assignment ? (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              disabled={assigning === assignment.id}
+                              onClick={() => void remove(assignment.id)}
+                              title="Return device to storage"
+                            >
+                              <RotateCcw size={13} />
+                              <span>
+                                {assigning === assignment.id ? "Returning…" : "Return"}
+                              </span>
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -524,6 +574,24 @@ export default function AssetsPage() {
           </div>
         </div>
       )}
+
+      {/* IT Asset Bulk CSV / Excel Import Modal */}
+      <ImportAssetsModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          void load();
+          setNotice("IT hardware assets and employee custody assignments synchronized successfully!");
+        }}
+      />
+
+      {/* Asset Full Information & Custody History Drawer */}
+      <AssetDetailModal
+        isOpen={Boolean(selectedAsset)}
+        onClose={() => setSelectedAsset(null)}
+        asset={selectedAsset}
+        onAssetUpdated={() => void load()}
+      />
     </DashboardFrame>
   );
 }

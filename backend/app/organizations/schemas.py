@@ -51,11 +51,36 @@ class AssetInput(BaseModel):
     assigned_to: Optional[str] = Field(default=None, max_length=255)
 
 
+class SubscriptionImportInput(BaseModel):
+    provider: str = Field(..., min_length=1, max_length=100)
+    name: str = Field(..., min_length=1, max_length=255)
+    plan: Optional[str] = None
+    amount: Optional[str] = None
+    currency: Optional[str] = Field(default="USD", max_length=3)
+    billing_interval: Optional[str] = Field(default="monthly", max_length=20)
+    renewal_type: Optional[str] = Field(default="AUTOPAY", max_length=50)
+    start_date: Optional[str] = None
+    next_renewal_date: Optional[str] = None
+    status: Optional[str] = Field(default="ACTIVE", max_length=30)
+    note: Optional[str] = None
+
+
+class IntegrationImportInput(BaseModel):
+    provider_id: str = Field(..., min_length=1, max_length=100)
+    provider_name: Optional[str] = None
+    category: Optional[str] = Field(default="cloud", max_length=50)
+    status: Optional[str] = Field(default="CONNECTED", max_length=50)
+    account_or_tenant_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class OnboardingSubmit(BaseModel):
     company: OrganizationProfileUpdate
     departments: list[DepartmentInput] = Field(default_factory=list)
     employees: list[EmployeeInput] = Field(default_factory=list)
     assets: list[AssetInput] = Field(default_factory=list)
+    subscriptions: list[SubscriptionImportInput] = Field(default_factory=list)
+    integrations: list[IntegrationImportInput] = Field(default_factory=list)
 
 
 class OrganizationResponse(BaseModel):

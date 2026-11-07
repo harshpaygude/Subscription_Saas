@@ -114,9 +114,11 @@ def start_offboarding(db: Session, actor: User, lifecycle: EmployeeLifecycle, la
 
     active_assets = db.query(AssetAssignment).filter(AssetAssignment.user_id == lifecycle.user_id, AssetAssignment.organization_id == actor.organization_id, AssetAssignment.status == "ACTIVE").all()
     for assignment in active_assets:
+        asset = db.query(Asset).filter(Asset.id == assignment.asset_id).first()
+        asset_label = f"{asset.name} ({asset.asset_tag})" if asset else f"Asset #{assignment.asset_id}"
         exists = db.query(LifecycleTask).filter(LifecycleTask.lifecycle_id == lifecycle.id, LifecycleTask.task_type == "RECOVER_ASSET", LifecycleTask.related_asset_assignment_id == assignment.id, LifecycleTask.status == "OPEN").first()
         if not exists:
-            db.add(LifecycleTask(organization_id=actor.organization_id, lifecycle_id=lifecycle.id, task_type="RECOVER_ASSET", title="Recover company asset", action_status="PENDING", related_asset_id=assignment.asset_id, related_asset_assignment_id=assignment.id))
+            db.add(LifecycleTask(organization_id=actor.organization_id, lifecycle_id=lifecycle.id, task_type="RECOVER_ASSET", title=f"Recover company asset: {asset_label}", action_status="PENDING", related_asset_id=assignment.asset_id, related_asset_assignment_id=assignment.id))
     db.flush()
     if db.query(LifecycleTask).filter(LifecycleTask.lifecycle_id == lifecycle.id, LifecycleTask.required.is_(True), LifecycleTask.status == "OPEN").count() == 0:
         lifecycle.status = "COMPLETED"

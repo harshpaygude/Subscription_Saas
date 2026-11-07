@@ -271,6 +271,7 @@ class Subscription(Base):
     cancellation_date: Mapped[Optional[datetime]] = mapped_column(Date, nullable=True)
     source: Mapped[str] = mapped_column(String(40), nullable=False, default="manual")
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    renewal_type: Mapped[str] = mapped_column(String(50), nullable=False, default="AUTOPAY", server_default="AUTOPAY")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

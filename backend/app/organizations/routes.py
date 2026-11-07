@@ -14,10 +14,12 @@ from app.auth.security import hash_password
 from app.database.models import (
     Asset,
     AssetAssignment,
+    Connection,
     Department,
     DepartmentMembership,
     EmployeeLifecycle,
     Organization,
+    Subscription,
     User,
 )
 from app.database.session import get_db
@@ -363,6 +365,86 @@ async def submit_onboarding(
                         )
                     )
 
+    # 4b. Create subscriptions if provided
+    for sub in payload.subscriptions:
+        raw_name = sub.name.strip()
+        raw_provider = sub.provider.strip().lower()
+        if not raw_name or not raw_provider:
+            continue
+        existing_sub = (
+            db.query(Subscription)
+            .filter(
+                Subscription.organization_id == org.id,
+                Subscription.provider == raw_provider,
+                Subscription.name == raw_name,
+            )
+            .first()
+        )
+        amount_val = None
+        if sub.amount:
+            try:
+                amount_val = float(str(sub.amount).replace("$", "").replace(",", "").strip())
+            except Exception:
+                pass
+        s_date = None
+        if sub.start_date:
+            try:
+                s_date = date.fromisoformat(str(sub.start_date)[:10])
+            except Exception:
+                pass
+        r_date = None
+        if sub.next_renewal_date:
+            try:
+                r_date = date.fromisoformat(str(sub.next_renewal_date)[:10])
+            except Exception:
+                pass
+        
+        raw_renewal_type = (sub.renewal_type or "AUTOPAY").upper()
+        if not existing_sub:
+            db.add(
+                Subscription(
+                    organization_id=org.id,
+                    user_id=current_user.id,
+                    provider=raw_provider,
+                    name=raw_name,
+                    plan=sub.plan.strip() if sub.plan else None,
+                    amount=amount_val,
+                    currency=(sub.currency or "USD").upper()[:3],
+                    billing_interval=sub.billing_interval or "monthly",
+                    renewal_type=raw_renewal_type,
+                    start_date=s_date,
+                    next_renewal_date=r_date,
+                    status=(sub.status or "ACTIVE").upper(),
+                    source="onboarding_import",
+                    note=sub.note.strip() if sub.note else None,
+                )
+            )
+
+    # 4c. Create mock integrations / connections if provided
+    for intg in payload.integrations:
+        prov_id = intg.provider_id.strip().lower()
+        if not prov_id:
+            continue
+        existing_conn = (
+            db.query(Connection)
+            .filter(
+                Connection.organization_id == org.id,
+                Connection.provider == prov_id,
+            )
+            .first()
+        )
+        if not existing_conn:
+            db.add(
+                Connection(
+                    organization_id=org.id,
+                    user_id=current_user.id,
+                    provider=prov_id,
+                    provider_tenant_id=intg.account_or_tenant_id or f"{prov_id}-org-{org.id}",
+                    status="ACTIVE",
+                    last_verified_at=datetime.utcnow(),
+                )
+            )
+
     # 5. Mark onboarding completed
     org.onboarding_completed = True
     org.onboarding_completed_at = datetime.utcnow()
@@ -442,11 +524,40 @@ async def parse_onboarding_excel(
             }
             for a in preview.assets
         ],
+        "subscriptions": [
+            {
+                "provider": s.provider,
+                "name": s.name,
+                "plan": s.plan,
+                "amount": s.amount,
+                "currency": s.currency,
+                "billing_interval": s.billing_interval,
+                "renewal_type": s.renewal_type,
+                "start_date": str(s.start_date) if s.start_date else None,
+                "next_renewal_date": str(s.next_renewal_date) if s.next_renewal_date else None,
+                "status": s.status,
+                "note": s.note,
+            }
+            for s in preview.subscriptions
+        ],
+        "integrations": [
+            {
+                "provider_id": i.provider_id,
+                "provider_name": i.provider_name,
+                "category": i.category,
+                "status": i.status,
+                "account_or_tenant_id": i.account_or_tenant_id,
+                "notes": i.notes,
+            }
+            for i in preview.integrations
+        ],
         "errors": preview.errors,
         "warnings": preview.warnings,
         "department_count": len(preview.departments),
         "employee_count": len(preview.employees),
         "asset_count": len(preview.assets),
+        "subscription_count": len(preview.subscriptions),
+        "integration_count": len(preview.integrations),
     }
 
 

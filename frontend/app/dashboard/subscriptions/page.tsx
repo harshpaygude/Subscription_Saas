@@ -13,8 +13,14 @@ import {
   AlertTriangle,
   WalletCards,
   Building,
+  Upload,
+  Download,
+  Sparkles,
+  Zap,
+  Clock,
 } from "lucide-react";
 import { DashboardFrame } from "@/components/dashboard/DashboardFrame";
+import { ImportSubscriptionsModal } from "@/components/dashboard/ImportSubscriptionsModal";
 import {
   assignSubscription,
   cancelSubscription,
@@ -48,6 +54,58 @@ export default function SubscriptionsPage() {
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  function getRenewalCountdown(renewalDateStr: string | null) {
+    if (!renewalDateStr) return null;
+    const renewal = new Date(renewalDateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    renewal.setHours(0, 0, 0, 0);
+    const diffTime = renewal.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return <span className="text-xs text-muted">Expired {Math.abs(diffDays)}d ago</span>;
+    }
+    if (diffDays === 0) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
+          <Clock size={11} /> ⚠️ Renews today!
+        </span>
+      );
+    }
+    if (diffDays === 1) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+          <Clock size={11} /> ⚠️ 1-day alert (Tomorrow)
+        </span>
+      );
+    }
+    if (diffDays <= 30) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+          <Clock size={11} /> ⏱️ 1-mo alert ({diffDays}d left)
+        </span>
+      );
+    }
+    return <span className="text-xs text-muted">In {diffDays} days</span>;
+  }
+
+  function getRenewalTypeBadge(type: string | null | undefined) {
+    const isAuto = !type || type.toUpperCase().includes("AUTO");
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
+          isAuto
+            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
+            : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+        }`}
+      >
+        {isAuto ? "⚡ Auto-Pay" : "📝 Manual"}
+      </span>
+    );
+  }
 
   async function load() {
     setLoading(true);
@@ -96,9 +154,10 @@ export default function SubscriptionsPage() {
         amount: String(form.get("amount") || "") || null,
         currency: String(form.get("currency") || "USD"),
         billing_interval: String(form.get("billing_interval")),
+        renewal_type: String(form.get("renewal_type") || "AUTOPAY"),
         start_date: String(form.get("start_date") || "") || null,
         next_renewal_date: String(form.get("next_renewal_date") || "") || null,
-        note: null,
+        note: String(form.get("note") || "") || null,
       });
       setShowForm(false);
       setNotice("Subscription recorded successfully.");
@@ -194,14 +253,24 @@ export default function SubscriptionsPage() {
       title="Subscriptions"
       description="Track recurring SaaS licenses, billing cycles, allocated employee seats, and renewal alerts."
       actions={
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={() => setShowForm(true)}
-        >
-          <Plus size={15} />
-          <span>Add Subscription</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowImportModal(true)}
+          >
+            <Upload size={14} />
+            <span>Import CSV / Excel</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowForm(true)}
+          >
+            <Plus size={15} />
+            <span>Add Subscription</span>
+          </button>
+        </div>
       }
     >
       {/* Toast Notice */}
@@ -222,12 +291,23 @@ export default function SubscriptionsPage() {
 
       {/* Main Table Card */}
       <section className="dashboard-content-card">
-        <div className="card-header-bar">
+        <div className="card-header-bar flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="card-heading">Subscription Portfolio</h2>
             <p className="card-subheading">
-              {items.length} recurring SaaS services tracked in your organization.
+              {items.length} recurring SaaS services tracked · Includes 1-month &amp; 1-day renewal alerts.
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/UniSora_Complete_SaaS_Demo_Dataset.xlsx"
+              download="UniSora_Complete_SaaS_Demo_Dataset.xlsx"
+              className="btn btn-outline btn-xs flex items-center gap-1.5"
+              title="Download complete demo dataset"
+            >
+              <Download size={12} />
+              <span>Download Demo Dataset</span>
+            </a>
           </div>
         </div>
 
@@ -298,11 +378,12 @@ export default function SubscriptionsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Service & Provider</th>
+                  <th>Service &amp; Provider</th>
                   <th>Plan Tier</th>
                   <th>Price</th>
                   <th>Billing Cycle</th>
-                  <th>Next Renewal</th>
+                  <th>Renewal Type</th>
+                  <th>Next Renewal &amp; Alert</th>
                   <th>Status</th>
                   <th className="align-right">Actions</th>
                 </tr>
@@ -339,9 +420,15 @@ export default function SubscriptionsPage() {
                         <span className="text-secondary capitalize">{item.billing_interval}</span>
                       </td>
                       <td>
-                        <span className="text-muted text-xs">
-                          {item.next_renewal_date || "—"}
-                        </span>
+                        {getRenewalTypeBadge(item.renewal_type)}
+                      </td>
+                      <td>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-secondary font-medium text-xs">
+                            {item.next_renewal_date || "—"}
+                          </span>
+                          {getRenewalCountdown(item.next_renewal_date)}
+                        </div>
                       </td>
                       <td>
                         <StatusBadge
@@ -657,6 +744,24 @@ export default function SubscriptionsPage() {
                     <input name="next_renewal_date" type="date" className="form-input" />
                   </div>
                 </div>
+
+                <div className="form-row-grid">
+                  <div className="form-group">
+                    <label className="form-label">Renewal Method <span className="text-danger">*</span></label>
+                    <select name="renewal_type" defaultValue="AUTOPAY" className="form-select">
+                      <option value="AUTOPAY">⚡ Auto-Pay (Card / Direct Debit)</option>
+                      <option value="MANUAL">📝 Manual Renewal (Invoice / PO)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Payment &amp; Contract Notes</label>
+                    <input
+                      name="note"
+                      placeholder="e.g. Card ending in 4092, PO required 30d prior"
+                      className="form-input"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="modal-footer">
@@ -681,6 +786,13 @@ export default function SubscriptionsPage() {
           </div>
         </div>
       )}
+
+      {/* Import Subscriptions Modal */}
+      <ImportSubscriptionsModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => void load()}
+      />
     </DashboardFrame>
   );
 }

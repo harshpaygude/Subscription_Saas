@@ -1,0 +1,15 @@
+asset_tag,name,asset_type,manufacturer,model,serial_number,purchase_cost,currency,location,assigned_to
+LT-101,MacBook Pro 16 M3 Max,Laptop,Apple,"MacBookPro18,1",C02G8491MD6R,3499.00,USD,San Francisco HQ,alex.morgan@unisora.test
+MN-101,Dell UltraSharp 27 4K USB-C Hub,Monitor,Dell,U2723QE,SN-DLL-4412,579.00,USD,Desk 4A,alex.morgan@unisora.test
+HD-101,Jabra Evolve2 65 Wireless ANC,Headset,Jabra,Evolve2-65,SN-JBR-9912,249.00,USD,San Francisco HQ,alex.morgan@unisora.test
+PH-101,iPhone 15 Pro Enterprise Fleet,Mobile Phone,Apple,A3102,SN-APL-7744,999.00,USD,San Francisco HQ,alex.morgan@unisora.test
+LT-102,MacBook Air 15 M3,Laptop,Apple,"MacBookAir15,2",C02G9102KD4T,1699.00,USD,San Francisco HQ,elena.rostova@unisora.test
+MN-102,Apple Studio Display 27 5K,Monitor,Apple,MK0U3LL/A,SN-APL-5520,1599.00,USD,Desk 4B,elena.rostova@unisora.test
+HD-102,Sony WH-1000XM5 ANC Headset,Headset,Sony,WH-1000XM5,SN-SNY-3319,399.00,USD,San Francisco HQ,elena.rostova@unisora.test
+LT-103,ThinkPad X1 Carbon Gen 11,Laptop,Lenovo,21HM000EUS,PF482910J,1850.00,USD,San Francisco HQ,marcus.vance@unisora.test
+MN-103,Dell 27 Video Conferencing Monitor,Monitor,Dell,C2722DE,SN-DLL-8819,489.00,USD,Desk 2C,marcus.vance@unisora.test
+LT-104,MacBook Pro 14 M3 Pro,Laptop,Apple,"MacBookPro18,3",C02G3301PD8M,1999.00,USD,San Francisco HQ,sarah.jenkins@unisora.test
+HD-104,Poly Voyager Focus 2 ANC,Headset,Poly,Voyager-F2,SN-PLY-5521,219.00,USD,San Francisco HQ,sarah.jenkins@unisora.test
+LT-105,Dell Latitude 5540 Core i7,Laptop,Dell,5540-I7,SN-DLL-1092,1299.00,USD,IT Storage Room B,
+MN-104,LG 34 Curved UltraWide Monitor,Monitor,LG,34WN80C-B,SN-LG-9821,549.00,USD,IT Storage Room B,
+HD-105,Jabra Evolve 40 Stereo USB,Headset,Jabra,Evolve-40,SN-JBR-1188,89.00,USD,IT Storage Room B,

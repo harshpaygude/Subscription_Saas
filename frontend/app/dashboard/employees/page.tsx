@@ -19,6 +19,7 @@ import {
   WalletCards,
   UserCheck,
   Upload,
+  Edit3,
 } from "lucide-react";
 import { DashboardFrame } from "@/components/dashboard/DashboardFrame";
 import {
@@ -40,6 +41,7 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ImportEmployeesModal } from "@/components/dashboard/ImportEmployeesModal";
+import { EditEmployeeModal } from "@/components/dashboard/EditEmployeeModal";
 
 export default function EmployeeLifecyclePage() {
   const [data, setData] = useState<LifecycleDashboardRecord | null>(null);
@@ -50,6 +52,7 @@ export default function EmployeeLifecyclePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showStartModal, setShowStartModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<LifecycleEmployeeRecord | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [joinedAt, setJoinedAt] = useState(new Date().toISOString().slice(0, 10));
@@ -426,13 +429,24 @@ export default function EmployeeLifecyclePage() {
                         <span className="text-muted text-xs">{emp.joined_at}</span>
                       </td>
                       <td className="align-right">
-                        <Link
-                          href={`/dashboard/employees/${emp.user_id}`}
-                          className="btn btn-secondary btn-sm"
-                        >
-                          <span>Manage</span>
-                          <ArrowRight size={13} />
-                        </Link>
+                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setEditingEmployee(emp)}
+                            title="Edit employee info, subscriptions, and IT assets"
+                          >
+                            <Edit3 size={13} />
+                            <span>Edit</span>
+                          </button>
+                          <Link
+                            href={`/dashboard/employees/${emp.user_id}`}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            <span>Manage</span>
+                            <ArrowRight size={13} />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -739,6 +753,17 @@ export default function EmployeeLifecyclePage() {
           void load();
           setNotice("Multi-service CSV import processed successfully! Employees, assets, and subscriptions have been synchronized.");
         }}
+      />
+
+      {/* Edit Employee & Resource Allocation Modal */}
+      <EditEmployeeModal
+        isOpen={Boolean(editingEmployee)}
+        onClose={() => setEditingEmployee(null)}
+        onSuccess={() => {
+          void load();
+          setNotice("Employee info, subscriptions, and IT assets updated successfully!");
+        }}
+        employee={editingEmployee}
       />
     </DashboardFrame>
   );

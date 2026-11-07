@@ -99,6 +99,15 @@ def init_db():
                         f"ALTER TABLE azure_connections ADD COLUMN {column_name} {definition}"
                     ))
 
+    # Migrate subscription columns (renewal_type: AUTOPAY vs MANUAL)
+    if "subscriptions" in tables:
+        sub_columns = {column["name"] for column in inspector.get_columns("subscriptions")}
+        if "renewal_type" not in sub_columns:
+            with engine.begin() as connection:
+                connection.execute(text(
+                    "ALTER TABLE subscriptions ADD COLUMN renewal_type VARCHAR(50) NOT NULL DEFAULT 'AUTOPAY'"
+                ))
+
     # Migrate organization profile columns
     if "organizations" in tables:
         org_columns = {column["name"] for column in inspector.get_columns("organizations")}
