@@ -584,6 +584,61 @@ export async function getAnthropicReports(connectionId: number, startDate: strin
 export async function saveAnthropicManualBalance(connectionId: number, amount: string, currency: string): Promise<{ connection_id: number; balance: AnthropicReportResponse["balance"] }> { return apiRequest(`/integrations/anthropic/connections/${connectionId}/balance`, { method: "POST", body: JSON.stringify({ amount, currency }) }); }
 export async function removeAnthropicManualBalance(connectionId: number): Promise<{ message: string }> { return apiRequest<{ message: string }>(`/integrations/anthropic/connections/${connectionId}/balance`, { method: "DELETE" }); }
 
+
+export interface GenericProviderConnection {
+  id: number;
+  provider: string;
+  provider_tenant_id?: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  last_verified_at?: string | null;
+  profile_data?: Record<string, any>;
+}
+
+export interface GenericProviderConnectResponse {
+  connection: GenericProviderConnection;
+  profile_data: Record<string, any>;
+  message: string;
+}
+
+export interface GenericProviderDetailsResponse {
+  connection_id: number;
+  provider: string;
+  provider_tenant_id?: string | null;
+  status: string;
+  created_at: string;
+  last_verified_at?: string | null;
+  profile_data: Record<string, any>;
+}
+
+export async function connectProvider(providerId: string, credentials: Record<string, any>): Promise<GenericProviderConnectResponse> {
+  return apiRequest<GenericProviderConnectResponse>(`/integrations/${providerId}/connections`, {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export async function listProviderConnections(providerId: string): Promise<GenericProviderConnection[]> {
+  return apiRequest<GenericProviderConnection[]>(`/integrations/${providerId}/connections`);
+}
+
+export async function getProviderConnectionDetails(providerId: string, connectionId: number): Promise<GenericProviderDetailsResponse> {
+  return apiRequest<GenericProviderDetailsResponse>(`/integrations/${providerId}/connections/${connectionId}/details`);
+}
+
+export async function testProviderConnection(providerId: string, connectionId: number): Promise<{ connection_id: number; status: string; message: string; last_verified_at: string; profile_data?: Record<string, any> }> {
+  return apiRequest(`/integrations/${providerId}/connections/${connectionId}/test`, { method: "POST" });
+}
+
+export async function disconnectProviderConnection(providerId: string, connectionId: number): Promise<void> {
+  return apiRequest<void>(`/integrations/${providerId}/connections/${connectionId}`, { method: "DELETE" });
+}
+
+export async function listAllActiveConnections(): Promise<GenericProviderConnection[]> {
+  return apiRequest<GenericProviderConnection[]>("/integrations/all-active");
+}
+
 export interface SubscriptionRecord { id: number; organization_id: number; provider: string; name: string; plan: string | null; amount: string | null; currency: string; billing_interval: string; renewal_type: string | null; start_date: string | null; next_renewal_date: string | null; status: string; cancellation_date: string | null; source: string; note: string | null; created_at: string; updated_at: string; }
 export interface SpendRow { service: string; name: string; monthly_spend: string; currency: string; billing_source: string; billing_period: string; last_updated: string; status: string; }
 export interface MonthlySpendResponse { totals_by_currency: Record<string, string>; services: SpendRow[]; }

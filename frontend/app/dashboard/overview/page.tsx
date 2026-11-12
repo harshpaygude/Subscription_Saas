@@ -19,6 +19,7 @@ import { connectionStatus, providerRegistry } from "@/lib/integrations";
 import {
   getAnalyticsSummary,
   getAzureConnection,
+  listAllActiveConnections,
   listAnthropicConnections,
   listAWSConnections,
   listGeminiConnections,
@@ -35,28 +36,25 @@ export default function OverviewPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [connectionResults, summary] = await Promise.all([
-        Promise.allSettled([
-          listAWSConnections(),
-          listOpenAIConnections(),
-          listGeminiConnections(),
-          getAzureConnection(),
-          listAnthropicConnections(),
-        ]),
+      const [activeConnectionsResult, azureResult, summary] = await Promise.all([
+        listAllActiveConnections().catch(() => []),
+        getAzureConnection().catch(() => null),
         getAnalyticsSummary().catch(() => null),
       ]);
 
-      let count = 0;
-      connectionResults.forEach((result) => {
-        if (result.status !== "fulfilled") return;
-        const val = result.value;
-        const items = Array.isArray(val) ? val : [val];
-        count += items.filter(
-          (item) => item && connectionStatus(item).toString() === "CONNECTED"
-        ).length;
-      });
+      const connectedProviders = new Set<string>();
+      if (Array.isArray(activeConnectionsResult)) {
+        activeConnectionsResult.forEach((conn) => {
+          if (conn && conn.status === "ACTIVE") {
+            connectedProviders.add(conn.provider.toLowerCase());
+          }
+        });
+      }
+      if (azureResult && azureResult.id && azureResult.status === "CONNECTED") {
+        connectedProviders.add("azure");
+      }
 
-      setConnected(count);
+      setConnected(connectedProviders.size);
       setAnalytics(summary);
     } catch {
       // Keep existing state on error

@@ -10,8 +10,44 @@ import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { IntegrationDetails } from "@/components/integrations/IntegrationDetails";
 import { IntegrationFilters, type IntegrationFilterCategory, type IntegrationFilterStatus } from "@/components/integrations/IntegrationFilters";
 import { OpenAIUsageDetails } from "@/components/integrations/OpenAIUsageDetails";
+import { GenericProviderDetails } from "@/components/integrations/GenericProviderDetails";
 import { providerRegistry, sortProviders, connectionStatus, getProvider, type AWSConnectionCredentials, type IntegrationConnection, type ProviderDefinition } from "@/lib/integrations";
-import { connectAWS, connectAnthropic, connectAzureServicePrincipal, connectGemini, connectOpenAI, createSubscription, disconnectAnthropic, disconnectAWS, disconnectAzure, disconnectGemini, disconnectOpenAI, getAWSAccountPlan, getAWSCosts, getAzureConnection, listAnthropicConnections, listAWSConnections, listGeminiConnections, listOpenAIConnections, testAnthropicConnection, testAzureConnection, testGeminiConnection, testOpenAIConnection, type AWSAccountPlanResponse, type AWSConnection, type AWSCostResponse, type AnthropicConnection, type AzureConnection, type GeminiConnection, type OpenAIConnection } from "@/lib/api";
+import {
+  connectAWS,
+  connectAnthropic,
+  connectAzureServicePrincipal,
+  connectGemini,
+  connectOpenAI,
+  connectProvider,
+  createSubscription,
+  disconnectAnthropic,
+  disconnectAWS,
+  disconnectAzure,
+  disconnectGemini,
+  disconnectOpenAI,
+  disconnectProviderConnection,
+  getAWSAccountPlan,
+  getAWSCosts,
+  getAzureConnection,
+  listAllActiveConnections,
+  listAnthropicConnections,
+  listAWSConnections,
+  listGeminiConnections,
+  listOpenAIConnections,
+  testAnthropicConnection,
+  testAzureConnection,
+  testGeminiConnection,
+  testOpenAIConnection,
+  testProviderConnection,
+  type AWSAccountPlanResponse,
+  type AWSConnection,
+  type AWSCostResponse,
+  type AnthropicConnection,
+  type AzureConnection,
+  type GeminiConnection,
+  type GenericProviderConnection,
+  type OpenAIConnection,
+} from "@/lib/api";
 
 export default function IntegrationsPage() {
   const [aws, setAws] = useState<AWSConnection[]>([]);
@@ -32,19 +68,38 @@ export default function IntegrationsPage() {
   const [geminiDetails, setGeminiDetails] = useState<GeminiConnection | null>(null);
   const [azureDetails, setAzureDetails] = useState<AzureConnection | null>(null);
   const [anthropicDetails, setAnthropicDetails] = useState<AnthropicConnection | null>(null);
+  const [genericConnections, setGenericConnections] = useState<Record<string, GenericProviderConnection[]>>({});
+  const [genericDetails, setGenericDetails] = useState<GenericProviderConnection | null>(null);
+  const [genericProviderDef, setGenericProviderDef] = useState<ProviderDefinition | null>(null);
   const [awsPlan, setAwsPlan] = useState<AWSAccountPlanResponse | undefined>();
   const [awsCost, setAwsCost] = useState<AWSCostResponse | undefined>();
   const [awsPlanError, setAwsPlanError] = useState("");
 
-  const byProvider: Record<string, IntegrationConnection[]> = { aws, openai, gemini, azure, anthropic };
+  const byProvider: Record<string, IntegrationConnection[]> = { aws, openai, gemini, azure, anthropic, ...genericConnections };
 
   useEffect(() => {
-    void Promise.allSettled([listAWSConnections(), listOpenAIConnections(), listGeminiConnections(), getAzureConnection(), listAnthropicConnections()]).then(([a, o, g, z, c]) => {
+    void Promise.allSettled([
+      listAWSConnections(),
+      listOpenAIConnections(),
+      listGeminiConnections(),
+      getAzureConnection(),
+      listAnthropicConnections(),
+      listAllActiveConnections(),
+    ]).then(([a, o, g, z, c, act]) => {
       if (a.status === "fulfilled") setAws(a.value);
       if (o.status === "fulfilled") setOpenai(o.value);
       if (g.status === "fulfilled") setGemini(g.value);
       if (z.status === "fulfilled") setAzure(z.value.id ? [z.value] : []);
       if (c.status === "fulfilled") setAnthropic(c.value);
+      if (act.status === "fulfilled") {
+        const grouped: Record<string, GenericProviderConnection[]> = {};
+        for (const conn of act.value) {
+          const key = conn.provider.toLowerCase().replace(/_/g, "-");
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(conn);
+        }
+        setGenericConnections(grouped);
+      }
     });
   }, []);
 
@@ -54,7 +109,7 @@ export default function IntegrationsPage() {
       const connection = byProvider[provider.id]?.[0];
       return (!query || [provider.name, provider.description].some((value) => value.toLowerCase().includes(query))) && (category === "all" || provider.category === category) && (status === "all" || (status === "connected" ? connectionStatus(connection) === "CONNECTED" : connectionStatus(connection) !== "CONNECTED"));
     }), byProvider);
-  }, [search, category, status, aws, openai, gemini, azure, anthropic]);
+  }, [search, category, status, aws, openai, gemini, azure, anthropic, genericConnections]);
 
   function closeWizard() {
     if (!busy) { setWizardOpen(false); setWizardProvider(null); setError(""); }
@@ -62,6 +117,7 @@ export default function IntegrationsPage() {
 
   function closeDetails() {
     setAwsDetails(null); setOpenaiDetails(null); setGeminiDetails(null); setAzureDetails(null); setAnthropicDetails(null);
+    setGenericDetails(null); setGenericProviderDef(null);
     setAwsPlan(undefined); setAwsCost(undefined); setAwsPlanError("");
   }
 
@@ -87,6 +143,10 @@ export default function IntegrationsPage() {
     else if (provider.id === "gemini") setGeminiDetails(connection as GeminiConnection);
     else if (provider.id === "azure") setAzureDetails(connection as AzureConnection);
     else if (provider.id === "anthropic") setAnthropicDetails(connection as AnthropicConnection);
+    else {
+      setGenericDetails(connection as GenericProviderConnection);
+      setGenericProviderDef(provider);
+    }
   }
 
   async function submit<T>(action: () => Promise<T>, success: string) {
@@ -100,11 +160,20 @@ export default function IntegrationsPage() {
     if (!window.confirm("Disconnect this integration?")) return;
     setBusy(true);
     try {
-      if (connection.provider === "AWS") { await disconnectAWS(connection.id); setAws((items) => items.filter((item) => item.id !== connection.id)); }
-      else if (connection.provider === "OPENAI") { await disconnectOpenAI(connection.id); setOpenai((items) => items.filter((item) => item.id !== connection.id)); }
-      else if (connection.provider === "GEMINI") { await disconnectGemini(connection.id); setGemini((items) => items.filter((item) => item.id !== connection.id)); }
-      else if (connection.provider === "AZURE") { await disconnectAzure(); setAzure([]); }
-      else { await disconnectAnthropic(connection.id); setAnthropic((items) => items.filter((item) => item.id !== connection.id)); }
+      const provUpper = connection.provider.toUpperCase();
+      if (provUpper === "AWS") { await disconnectAWS(connection.id); setAws((items) => items.filter((item) => item.id !== connection.id)); }
+      else if (provUpper === "OPENAI") { await disconnectOpenAI(connection.id); setOpenai((items) => items.filter((item) => item.id !== connection.id)); }
+      else if (provUpper === "GEMINI") { await disconnectGemini(connection.id); setGemini((items) => items.filter((item) => item.id !== connection.id)); }
+      else if (provUpper === "AZURE") { await disconnectAzure(); setAzure([]); }
+      else if (provUpper === "ANTHROPIC") { await disconnectAnthropic(connection.id); setAnthropic((items) => items.filter((item) => item.id !== connection.id)); }
+      else {
+        const provKey = connection.provider.toLowerCase().replace(/_/g, "-");
+        await disconnectProviderConnection(provKey, connection.id);
+        setGenericConnections((curr) => ({
+          ...curr,
+          [provKey]: (curr[provKey] || []).filter((item) => item.id !== connection.id),
+        }));
+      }
       closeDetails(); setNotice("Integration disconnected.");
     } catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Could not disconnect the integration."); }
     finally { setBusy(false); }
@@ -113,10 +182,22 @@ export default function IntegrationsPage() {
   async function test(connection: IntegrationConnection) {
     setBusy(true);
     try {
-      if (connection.provider === "OPENAI") { const result = await testOpenAIConnection(connection.id); setOpenai((items) => items.map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at } : item)); }
-      else if (connection.provider === "GEMINI") { const result = await testGeminiConnection(connection.id); setGemini((items) => items.map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at } : item)); }
-      else if (connection.provider === "ANTHROPIC") { const result = await testAnthropicConnection(connection.id); setAnthropic((items) => items.map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at } : item)); }
-      else { const result = await testAzureConnection(); setAzure((items) => items.map((item) => ({ ...item, status: result.status, last_successful_refresh: result.last_successful_refresh }))); }
+      const provUpper = connection.provider.toUpperCase();
+      if (provUpper === "OPENAI") { const result = await testOpenAIConnection(connection.id); setOpenai((items) => items.map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at } : item)); }
+      else if (provUpper === "GEMINI") { const result = await testGeminiConnection(connection.id); setGemini((items) => items.map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at } : item)); }
+      else if (provUpper === "ANTHROPIC") { const result = await testAnthropicConnection(connection.id); setAnthropic((items) => items.map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at } : item)); }
+      else if (provUpper === "AZURE") { const result = await testAzureConnection(); setAzure((items) => items.map((item) => ({ ...item, status: result.status, last_successful_refresh: result.last_successful_refresh }))); }
+      else {
+        const provKey = connection.provider.toLowerCase().replace(/_/g, "-");
+        const result = await testProviderConnection(provKey, connection.id);
+        setGenericConnections((curr) => ({
+          ...curr,
+          [provKey]: (curr[provKey] || []).map((item) => item.id === connection.id ? { ...item, status: result.status, last_verified_at: result.last_verified_at, profile_data: result.profile_data || item.profile_data } : item),
+        }));
+        if (genericDetails && genericDetails.id === connection.id) {
+          setGenericDetails((curr) => curr ? { ...curr, status: result.status, last_verified_at: result.last_verified_at, profile_data: result.profile_data || curr.profile_data } : null);
+        }
+      }
       setNotice("Connection test completed.");
     } catch (requestError) { setNotice(requestError instanceof Error ? requestError.message : "Connection test failed."); }
     finally { setBusy(false); }
@@ -232,6 +313,16 @@ export default function IntegrationsPage() {
             ]);
           }, "Anthropic Claude connected successfully.")
         }
+        onSubmitGenericProvider={(providerId, credentials) =>
+          submit(async () => {
+            const result = await connectProvider(providerId, credentials);
+            const provKey = providerId.toLowerCase().replace(/_/g, "-");
+            setGenericConnections((curr) => ({
+              ...curr,
+              [provKey]: [result.connection, ...(curr[provKey] || []).filter((item) => item.id !== result.connection.id)],
+            }));
+          }, `${wizardProvider?.name || "Provider"} connected successfully.`)
+        }
         onSubmitManual={(provider, payload) =>
           submit(async () => {
             await createSubscription({
@@ -298,6 +389,15 @@ export default function IntegrationsPage() {
             );
             setAnthropicDetails(updated);
           }}
+        />
+      )}
+
+      {genericDetails && genericProviderDef && (
+        <GenericProviderDetails
+          provider={genericProviderDef}
+          connection={genericDetails}
+          onClose={closeDetails}
+          onDisconnect={() => void disconnect(genericDetails)}
         />
       )}
     </DashboardFrame>

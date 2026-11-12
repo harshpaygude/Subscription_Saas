@@ -20,6 +20,7 @@ interface AddIntegrationWizardProps {
   onSubmitGemini: (apiKey: string) => Promise<void>;
   onSubmitAzure: (credentials: AzureServicePrincipalCredentials) => Promise<void>;
   onSubmitAnthropic: (apiKey: string, model: string, connectionName?: string) => Promise<void>;
+  onSubmitGenericProvider?: (providerId: string, credentials: Record<string, any>) => Promise<void>;
   onSubmitManual: (provider: ProviderDefinition, payload: { name: string; plan?: string; amount?: string; currency: string; billing_interval: string; next_renewal_date?: string }) => Promise<void>;
 }
 
@@ -30,7 +31,7 @@ const stepLabels: Record<WizardStep, string> = {
   verify: "Verify",
 };
 
-export function AddIntegrationWizard({ open, initialProvider = null, connections, connectedProviderIds = [], busy, error, onClose, onSubmitAWS, onSubmitOpenAI, onSubmitGemini, onSubmitAzure, onSubmitAnthropic, onSubmitManual }: AddIntegrationWizardProps) {
+export function AddIntegrationWizard({ open, initialProvider = null, connections, connectedProviderIds = [], busy, error, onClose, onSubmitAWS, onSubmitOpenAI, onSubmitGemini, onSubmitAzure, onSubmitAnthropic, onSubmitGenericProvider, onSubmitManual }: AddIntegrationWizardProps) {
   const [provider, setProvider] = useState<ProviderDefinition | null>(initialProvider);
   const [step, setStep] = useState<WizardStep>(initialProvider ? "requirements" : "select");
   const [search, setSearch] = useState("");
@@ -56,6 +57,8 @@ export function AddIntegrationWizard({ open, initialProvider = null, connections
   const [manualCurrency, setManualCurrency] = useState("USD");
   const [manualInterval, setManualInterval] = useState("monthly");
   const [manualRenewal, setManualRenewal] = useState("");
+  const [genericToken, setGenericToken] = useState("");
+  const [genericSecondary, setGenericSecondary] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -83,6 +86,7 @@ export function AddIntegrationWizard({ open, initialProvider = null, connections
     setAzureClientSecret("");
     setAzureSubscriptionId("");
     setManualName(""); setManualPlan(""); setManualAmount(""); setManualCurrency("USD"); setManualInterval("monthly"); setManualRenewal("");
+    setGenericToken(""); setGenericSecondary("");
   }
 
   function close() {
@@ -170,12 +174,51 @@ export function AddIntegrationWizard({ open, initialProvider = null, connections
     catch { setStep("configure"); }
   }
 
+  async function submitGeneric(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!provider || !genericToken.trim()) return;
+    setStep("verify");
+    const credentials: Record<string, any> = {};
+    if (provider.id === "github") {
+      credentials.token = genericToken.trim();
+    } else if (provider.id === "slack") {
+      credentials.bot_token = genericToken.trim();
+    } else if (provider.id === "stripe") {
+      credentials.api_key = genericToken.trim();
+    } else if (provider.id === "gitlab") {
+      credentials.access_token = genericToken.trim();
+    } else if (provider.id === "gcp") {
+      credentials.api_key = genericToken.trim();
+      credentials.project_id = genericSecondary.trim();
+    } else if (provider.id === "google-workspace") {
+      credentials.api_key = genericToken.trim();
+      credentials.domain = genericSecondary.trim();
+    } else if (provider.id === "microsoft-365") {
+      credentials.client_secret = genericToken.trim();
+      credentials.tenant_id = genericSecondary.trim();
+    } else {
+      credentials.api_key = genericToken.trim();
+      if (genericSecondary.trim()) credentials.secondary = genericSecondary.trim();
+    }
+
+    try {
+      if (onSubmitGenericProvider) {
+        await onSubmitGenericProvider(provider.id, credentials);
+      }
+      clearSensitiveState();
+    } catch {
+      setStep("configure");
+    }
+  }
+
   const isAWS = provider?.id === "aws";
   const isOpenAI = provider?.id === "openai";
   const isGemini = provider?.id === "gemini";
   const isAzure = provider?.id === "azure";
   const isAnthropic = provider?.id === "anthropic";
+  const isSpecialized = isAWS || isOpenAI || isGemini || isAzure || isAnthropic;
   const isConnectable = provider?.availability === "available";
+  const isGenericConnectable = isConnectable && !isSpecialized;
   const isManual = provider?.availability === "manual";
   const steps: WizardStep[] = provider
     ? ["requirements", ...(isConnectable ? (["configure", "verify"] as WizardStep[]) : isManual ? (["configure"] as WizardStep[]) : [])]
@@ -206,6 +249,11 @@ export function AddIntegrationWizard({ open, initialProvider = null, connections
             {provider.id === "openai" && <a className="hub-external-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">Open OpenAI API key management <ExternalLink size={13} /></a>}
             {provider.id === "gemini" && <a className="hub-external-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Open Google AI Studio API keys <ExternalLink size={13} /></a>}
             {provider.id === "anthropic" && <a className="hub-external-link" href="https://platform.claude.com/settings/keys" target="_blank" rel="noreferrer">Open Anthropic Console API keys <ExternalLink size={13} /></a>}
+            {provider.id === "github" && <a className="hub-external-link" href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">Open GitHub Personal Access Tokens <ExternalLink size={13} /></a>}
+            {provider.id === "slack" && <a className="hub-external-link" href="https://api.slack.com/apps" target="_blank" rel="noreferrer">Open Slack App Management <ExternalLink size={13} /></a>}
+            {provider.id === "stripe" && <a className="hub-external-link" href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer">Open Stripe Developers Dashboard <ExternalLink size={13} /></a>}
+            {provider.id === "gitlab" && <a className="hub-external-link" href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank" rel="noreferrer">Open GitLab Access Tokens <ExternalLink size={13} /></a>}
+            {provider.id === "gcp" && <a className="hub-external-link" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">Open Google Cloud Console <ExternalLink size={13} /></a>}
             <div className="hub-dialog-actions"><button className="hub-secondary-button" onClick={back}><ArrowLeft size={14} /> Back</button><button className="hub-primary-button" onClick={() => setStep("configure")} disabled={busy}>Continue <ArrowRight size={14} /></button></div>
           </>
         ) : isAWS && step === "configure" ? (
@@ -218,6 +266,196 @@ export function AddIntegrationWizard({ open, initialProvider = null, connections
           <form onSubmit={submitAnthropic}><p className="hub-dialog-intro">Enter an Anthropic API key from the Anthropic Console. UniSora sends it only to the authenticated backend, which makes a minimal real Messages API request and stores the key encrypted. The complete key is never returned or stored in your browser.</p><label>Anthropic API key<span className="hub-label-note"> required</span><div className="hub-password-field"><input required value={anthropicApiKey} onChange={(event) => setAnthropicApiKey(event.target.value)} type={showSecret ? "text" : "password"} autoComplete="new-password" placeholder="sk-ant-…" /><button type="button" onClick={() => setShowSecret((value) => !value)} aria-label={showSecret ? "Hide Anthropic API key" : "Show Anthropic API key"}>{showSecret ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label><label>Claude model<select required value={anthropicModel} onChange={(event) => setAnthropicModel(event.target.value)}><option value="claude-sonnet-4-6">Claude Sonnet 4.6</option><option value="claude-opus-4-6">Claude Opus 4.6</option><option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option></select></label><label>Connection name <span className="hub-label-note">optional</span><input value={anthropicConnectionName} onChange={(event) => setAnthropicConnectionName(event.target.value)} maxLength={255} placeholder="Production Claude" /></label>{error && <p className="hub-form-error" role="alert">{error}</p>}<div className="hub-dialog-actions"><button type="button" className="hub-secondary-button" onClick={back}><ArrowLeft size={14} /> Back</button><button type="submit" className="hub-primary-button" disabled={busy || !anthropicApiKey.trim() || !anthropicModel.trim()}>Verify and connect <ArrowRight size={14} /></button></div></form>
         ) : isAzure && step === "configure" ? (
           <form onSubmit={(event) => { event.preventDefault(); if (!azureTenantId.trim() || !azureClientId.trim() || !azureClientSecret) return; setStep("verify"); void onSubmitAzure({ tenant_id: azureTenantId.trim(), client_id: azureClientId.trim(), client_secret: azureClientSecret, ...(azureSubscriptionId.trim() ? { subscription_id: azureSubscriptionId.trim() } : {}) }).then(clearSensitiveState).catch(() => setStep("configure")); }}><p className="hub-dialog-intro">Enter your Microsoft Entra service-principal details. The client secret is sent only to the authenticated backend and is encrypted before storage.</p><label>Tenant ID<input required value={azureTenantId} onChange={(event) => setAzureTenantId(event.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" /></label><label>Application (client) ID<input required value={azureClientId} onChange={(event) => setAzureClientId(event.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" /></label><label>Client secret<div className="hub-password-field"><input required value={azureClientSecret} onChange={(event) => setAzureClientSecret(event.target.value)} type={showSecret ? "text" : "password"} autoComplete="new-password" /><button type="button" onClick={() => setShowSecret((value) => !value)} aria-label={showSecret ? "Hide client secret" : "Show client secret"}>{showSecret ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label><label>Subscription ID <span className="hub-label-note">optional</span><input value={azureSubscriptionId} onChange={(event) => setAzureSubscriptionId(event.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" /></label>{error && <p className="hub-form-error" role="alert">{error}</p>}<div className="hub-dialog-actions"><button type="button" className="hub-secondary-button" onClick={back}>Back</button><button type="submit" className="hub-primary-button" disabled={busy}>Verify and connect <ArrowRight size={14} /></button></div></form>
+        ) : isGenericConnectable && step === "configure" ? (
+          <form onSubmit={submitGeneric}>
+            <p className="hub-dialog-intro">
+              Enter your {provider.name} credentials. UniSora validates workspace access and safely encrypts credentials before storing them.
+            </p>
+            {provider.id === "github" && (
+              <label>
+                GitHub Personal Access Token <span className="hub-label-note">required</span>
+                <div className="hub-password-field">
+                  <input
+                    required
+                    value={genericToken}
+                    onChange={(event) => setGenericToken(event.target.value)}
+                    type={showSecret ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="ghp_... or github_pat_..."
+                  />
+                  <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle token visibility">
+                    {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            {provider.id === "slack" && (
+              <label>
+                Slack Bot User OAuth Token <span className="hub-label-note">required</span>
+                <div className="hub-password-field">
+                  <input
+                    required
+                    value={genericToken}
+                    onChange={(event) => setGenericToken(event.target.value)}
+                    type={showSecret ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="xoxb-..."
+                  />
+                  <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle token visibility">
+                    {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            {provider.id === "stripe" && (
+              <label>
+                Stripe Secret or Restricted Key <span className="hub-label-note">required</span>
+                <div className="hub-password-field">
+                  <input
+                    required
+                    value={genericToken}
+                    onChange={(event) => setGenericToken(event.target.value)}
+                    type={showSecret ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="sk_live_... or rk_live_..."
+                  />
+                  <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle key visibility">
+                    {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            {provider.id === "gitlab" && (
+              <label>
+                GitLab Personal Access Token <span className="hub-label-note">required</span>
+                <div className="hub-password-field">
+                  <input
+                    required
+                    value={genericToken}
+                    onChange={(event) => setGenericToken(event.target.value)}
+                    type={showSecret ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="glpat-..."
+                  />
+                  <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle token visibility">
+                    {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            {provider.id === "gcp" && (
+              <>
+                <label>
+                  GCP Project ID <span className="hub-label-note">required</span>
+                  <input
+                    required
+                    value={genericSecondary}
+                    onChange={(event) => setGenericSecondary(event.target.value)}
+                    placeholder="my-gcp-project-123"
+                  />
+                </label>
+                <label>
+                  Service Account Key JSON or API Key <span className="hub-label-note">required</span>
+                  <div className="hub-password-field">
+                    <input
+                      required
+                      value={genericToken}
+                      onChange={(event) => setGenericToken(event.target.value)}
+                      type={showSecret ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="AIza... or service account JSON"
+                    />
+                    <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle key visibility">
+                      {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+              </>
+            )}
+            {provider.id === "google-workspace" && (
+              <>
+                <label>
+                  Primary Domain <span className="hub-label-note">required</span>
+                  <input
+                    required
+                    value={genericSecondary}
+                    onChange={(event) => setGenericSecondary(event.target.value)}
+                    placeholder="company.com"
+                  />
+                </label>
+                <label>
+                  Admin API Key / Credentials <span className="hub-label-note">required</span>
+                  <div className="hub-password-field">
+                    <input
+                      required
+                      value={genericToken}
+                      onChange={(event) => setGenericToken(event.target.value)}
+                      type={showSecret ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="AIza... or admin key"
+                    />
+                    <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle key visibility">
+                      {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+              </>
+            )}
+            {provider.id === "microsoft-365" && (
+              <>
+                <label>
+                  Tenant ID or Domain <span className="hub-label-note">required</span>
+                  <input
+                    required
+                    value={genericSecondary}
+                    onChange={(event) => setGenericSecondary(event.target.value)}
+                    placeholder="company.onmicrosoft.com or xxxxxxxx-xxxx-..."
+                  />
+                </label>
+                <label>
+                  Client Secret or Admin Token <span className="hub-label-note">required</span>
+                  <div className="hub-password-field">
+                    <input
+                      required
+                      value={genericToken}
+                      onChange={(event) => setGenericToken(event.target.value)}
+                      type={showSecret ? "text" : "password"}
+                      autoComplete="new-password"
+                    />
+                    <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle secret visibility">
+                      {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+              </>
+            )}
+            {!["github", "slack", "stripe", "gitlab", "gcp", "google-workspace", "microsoft-365"].includes(provider.id) && (
+              <label>
+                API Key or Token <span className="hub-label-note">required</span>
+                <div className="hub-password-field">
+                  <input
+                    required
+                    value={genericToken}
+                    onChange={(event) => setGenericToken(event.target.value)}
+                    type={showSecret ? "text" : "password"}
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowSecret((v) => !v)} aria-label="Toggle visibility">
+                    {showSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            {error && <p className="hub-form-error" role="alert">{error}</p>}
+            <div className="hub-dialog-actions">
+              <button type="button" className="hub-secondary-button" onClick={back}>
+                <ArrowLeft size={14} /> Back
+              </button>
+              <button type="submit" className="hub-primary-button" disabled={busy || !genericToken.trim()}>
+                Verify and connect <ArrowRight size={14} />
+              </button>
+            </div>
+          </form>
         ) : isManual && step === "configure" ? (
           <form onSubmit={submitManual}><p className="hub-dialog-intro">Create a persisted subscription record for this service. You can add license capacity and employee assignments afterward.</p><div className="hub-form-grid"><label>Service name<input required value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder={provider.name} /></label><label>Plan<input value={manualPlan} onChange={(event) => setManualPlan(event.target.value)} /></label><label>Amount<input type="number" min="0" step="0.000001" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} /></label><label>Currency<input required maxLength={3} value={manualCurrency} onChange={(event) => setManualCurrency(event.target.value)} /></label><label>Billing cycle<select value={manualInterval} onChange={(event) => setManualInterval(event.target.value)}><option value="monthly">Monthly</option><option value="annual">Annual</option><option value="quarterly">Quarterly</option><option value="weekly">Weekly</option></select></label><label>Next renewal<input type="date" value={manualRenewal} onChange={(event) => setManualRenewal(event.target.value)} /></label></div>{error && <p className="hub-form-error" role="alert">{error}</p>}<div className="hub-dialog-actions"><button type="button" className="hub-secondary-button" onClick={back}><ArrowLeft size={14} /> Back</button><button type="submit" className="hub-primary-button" disabled={busy || !manualName.trim()}>Save service</button></div></form>
         ) : isConnectable && step === "verify" ? (

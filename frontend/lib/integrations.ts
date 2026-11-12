@@ -6,8 +6,9 @@ export type IntegrationCategory =
   | "billing"
   | "custom";
 
-export type IntegrationAvailability = "available" | "manual";
-export type IntegrationStatus = "CONNECTED" | "ERROR" | "EXPIRED" | "DISCONNECTED";
+export type IntegrationStatus = "CONNECTED" | "DISCONNECTED" | "EXPIRED" | "ERROR";
+
+export type IntegrationAvailability = "available" | "manual" | "coming_soon";
 
 export interface ProviderDefinition {
   id: string;
@@ -45,7 +46,9 @@ export interface IntegrationConnection {
   updated_at: string | null;
   last_verified_at?: string | null;
   account_id?: string | null;
+  provider_tenant_id?: string | null;
   region?: string;
+  profile_data?: Record<string, any>;
 }
 
 export function connectionStatus(connection?: IntegrationConnection): IntegrationStatus {
@@ -104,7 +107,10 @@ export const providerRegistry: ProviderDefinition[] = [
     availability: "available",
     icon: "azure",
     authType: "OAuth or service principal",
-    instructions: ["Enter the Microsoft Entra tenant ID, application client ID, and client secret for your service principal.", "Azure access is verified server-side before credentials are encrypted and the connection is marked active."],
+    instructions: [
+      "Enter the Microsoft Entra tenant ID, application client ID, and client secret for your service principal.",
+      "Azure access is verified server-side before credentials are encrypted and the connection is marked active.",
+    ],
     requiredFields: ["Tenant ID", "Application client ID", "Client secret", "Azure subscription access"],
   },
   {
@@ -113,11 +119,15 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "cloud",
     description: "Track projects, billing accounts and cloud consumption.",
     capabilities: ["Projects", "Billing", "Usage"],
-    availability: "manual",
+    availability: "available",
     icon: "gcp",
-    authType: "OAuth or workload identity",
-    instructions: ["Record the Google Cloud subscription, billing cycle, and renewal date manually.", "You can add seat or cost details in the subscription and usage screens."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Service account JSON or API key",
+    instructions: [
+      "Provide a Google Cloud Project ID and Service Account Key (JSON) or API Key.",
+      "UniSora validates project access before storing your encrypted credentials.",
+    ],
+    requiredFields: ["GCP Project ID", "Service Account Key or API Key"],
+    optionalFields: ["Region"],
   },
   {
     id: "openai",
@@ -128,7 +138,10 @@ export const providerRegistry: ProviderDefinition[] = [
     availability: "available",
     icon: "openai",
     authType: "API key",
-    instructions: ["OpenAI API access is separate from a ChatGPT subscription.", "UniSora verifies the key with OpenAI's read-only List Models endpoint before saving an encrypted connection."],
+    instructions: [
+      "OpenAI API access is separate from a ChatGPT subscription.",
+      "UniSora verifies the key with OpenAI's read-only List Models endpoint before saving an encrypted connection.",
+    ],
     requiredFields: ["OpenAI API key"],
     optionalFields: ["Workspace or project"],
   },
@@ -141,7 +154,10 @@ export const providerRegistry: ProviderDefinition[] = [
     availability: "available",
     icon: "anthropic",
     authType: "API key",
-    instructions: ["Create an API key in the Anthropic Console.", "UniSora sends a minimal real Messages API request before storing the encrypted key."],
+    instructions: [
+      "Create an API key in the Anthropic Console.",
+      "UniSora sends a minimal real Messages API request before storing the encrypted key.",
+    ],
     requiredFields: ["Anthropic API key", "Supported Claude model"],
     optionalFields: ["Connection name"],
   },
@@ -154,7 +170,10 @@ export const providerRegistry: ProviderDefinition[] = [
     availability: "available",
     icon: "gemini",
     authType: "API key or OAuth",
-    instructions: ["Create a Gemini API key in Google AI Studio and enable the Generative Language API for its project.", "UniSora verifies the key with Gemini's read-only model list endpoint before saving it encrypted on the backend."],
+    instructions: [
+      "Create a Gemini API key in Google AI Studio and enable the Generative Language API for its project.",
+      "UniSora verifies the key with Gemini's read-only model list endpoint before saving it encrypted on the backend.",
+    ],
     requiredFields: ["Gemini API key"],
   },
   {
@@ -163,11 +182,15 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "productivity",
     description: "Bring licenses, users and renewal context into UniSora.",
     capabilities: ["Licenses", "Users", "Renewals"],
-    availability: "manual",
+    availability: "available",
     icon: "microsoft",
-    authType: "OAuth",
-    instructions: ["Record Microsoft 365 subscription, seat, and renewal details manually.", "Employee license allocations can be tracked with the subscription license workflow."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Entra Tenant & Application credentials",
+    instructions: [
+      "Enter your Microsoft 365 / Entra Tenant ID and client credentials.",
+      "UniSora validates tenant credentials and synchronizes license tiers.",
+    ],
+    requiredFields: ["Tenant ID", "Client Secret or Admin Token"],
+    optionalFields: ["Primary Domain"],
   },
   {
     id: "google-workspace",
@@ -175,11 +198,15 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "productivity",
     description: "Manage workspace seats and subscription visibility.",
     capabilities: ["Seats", "Subscriptions", "Usage"],
-    availability: "manual",
+    availability: "available",
     icon: "google",
-    authType: "OAuth",
-    instructions: ["Record Google Workspace subscription, seat, and renewal details manually.", "Use license assignments to track employee access."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Admin API Key or Service Account",
+    instructions: [
+      "Enter your Google Workspace primary domain and Admin API key or service credentials.",
+      "UniSora verifies domain management access before encrypting credentials.",
+    ],
+    requiredFields: ["Primary Domain", "Admin API Key"],
+    optionalFields: ["Admin Email"],
   },
   {
     id: "slack",
@@ -187,11 +214,14 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "productivity",
     description: "Monitor workspace plans and collaboration spend.",
     capabilities: ["Plans", "Seats", "Renewals"],
-    availability: "manual",
+    availability: "available",
     icon: "slack",
-    authType: "OAuth",
-    instructions: ["Record Slack plan and renewal details manually.", "Track assigned seats and department usage in UniSora."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Bot User OAuth Token",
+    instructions: [
+      "Enter a Slack Bot User OAuth Token (starting with xoxb-) from your Slack App management portal.",
+      "UniSora verifies workspace access, team identity, and member counts.",
+    ],
+    requiredFields: ["Slack Bot Token (xoxb-...)"],
   },
   {
     id: "github",
@@ -199,11 +229,14 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "developer",
     description: "Track developer seats, plans and organization usage.",
     capabilities: ["Organizations", "Seats", "Usage"],
-    availability: "manual",
+    availability: "available",
     icon: "github",
-    authType: "OAuth or personal access token",
-    instructions: ["Record GitHub organization plan and seat details manually.", "Track developer access with license assignments."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Personal Access Token",
+    instructions: [
+      "Generate a GitHub Personal Access Token (classic or fine-grained) with read:user, repo, and read:org scopes.",
+      "UniSora verifies your identity, repositories, and organization seats.",
+    ],
+    requiredFields: ["GitHub Personal Access Token"],
   },
   {
     id: "gitlab",
@@ -211,11 +244,14 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "developer",
     description: "Track GitLab groups, seats, plans, and renewal details.",
     capabilities: ["Groups", "Seats", "Usage"],
-    availability: "manual",
+    availability: "available",
     icon: "gitlab",
-    authType: "OAuth or personal access token",
-    instructions: ["Record GitLab plan and seat details manually.", "Track group access with license assignments."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Personal Access Token",
+    instructions: [
+      "Create a GitLab Personal Access Token with read_user and read_api scopes in User Settings > Access Tokens.",
+      "UniSora validates user identity and group access.",
+    ],
+    requiredFields: ["GitLab Personal Access Token"],
   },
   {
     id: "stripe",
@@ -223,11 +259,14 @@ export const providerRegistry: ProviderDefinition[] = [
     category: "billing",
     description: "Connect billing data when the Stripe provider is enabled.",
     capabilities: ["Invoices", "Payments", "Revenue"],
-    availability: "manual",
+    availability: "available",
     icon: "stripe",
-    authType: "OAuth",
-    instructions: ["Record Stripe billing and renewal details manually.", "Use usage and cost records for organization reporting."],
-    requiredFields: ["Service name", "Billing details"],
+    authType: "Secret or Restricted API Key",
+    instructions: [
+      "Obtain a Secret or Restricted API Key (starting with sk_ or rk_) from your Stripe Developers Dashboard.",
+      "UniSora verifies account identity, currency, and balance without charging or modifying data.",
+    ],
+    requiredFields: ["Stripe API Key (sk_... or rk_...)"],
   },
 ];
 

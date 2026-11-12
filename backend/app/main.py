@@ -15,6 +15,7 @@ from app.integrations.openai.routes import router as openai_router
 from app.integrations.gemini.routes import router as gemini_router
 from app.integrations.azure.routes import router as azure_router
 from app.integrations.anthropic.routes import router as anthropic_router
+from app.integrations.providers.routes import router as providers_router
 from app.subscriptions.routes import router as subscription_router
 from app.analytics.routes import router as analytics_router
 from app.alerts.routes import router as alerts_router
@@ -67,6 +68,7 @@ app.include_router(openai_router)
 app.include_router(gemini_router)
 app.include_router(azure_router)
 app.include_router(anthropic_router)
+app.include_router(providers_router)
 app.include_router(subscription_router)
 app.include_router(analytics_router)
 app.include_router(alerts_router)
