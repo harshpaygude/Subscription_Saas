@@ -32,11 +32,11 @@ function monthRange() {
 }
 
 function formatNumber(value: number | undefined) {
-  return value == null ? "—" : new Intl.NumberFormat().format(value);
+  return value == null ? "0" : new Intl.NumberFormat().format(value);
 }
 
 function formatTokensCompact(value: number | undefined) {
-  if (value == null) return "0";
+  if (value == null || value === 0) return "0";
   return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
 
@@ -80,8 +80,8 @@ function DonutPieChart({
       </div>
 
       {total <= 0 ? (
-        <p className="hub-settings-muted" style={{ padding: "20px 0", textAlign: "center" }}>
-          No data available for this range.
+        <p className="hub-settings-muted" style={{ padding: "30px 0", textAlign: "center" }}>
+          No usage reported for this category.
         </p>
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 8 }}>
@@ -271,6 +271,7 @@ export function AnthropicIntegrationDetails({
   const [newApiKey, setNewApiKey] = useState("");
   const [newModel, setNewModel] = useState(current.model || "claude-3-7-sonnet-20250219");
   const [newConnectionName, setNewConnectionName] = useState(current.connection_name || "");
+  const [newTier, setNewTier] = useState<string>("ENTERPRISE");
   const [showSecret, setShowSecret] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
 
@@ -281,6 +282,9 @@ export function AnthropicIntegrationDetails({
     try {
       const data = await getAnthropicReports(current.id, startDate, endDate, forceRefresh);
       setReport(data);
+      if (data.balance?.status) {
+        setNewTier(data.balance.status);
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not load Anthropic reporting data.");
     } finally {
@@ -300,9 +304,10 @@ export function AnthropicIntegrationDetails({
     setSavingKey(true);
 
     try {
-      const payload: { api_key?: string; model?: string; connection_name?: string } = {
+      const payload: { api_key?: string; model?: string; connection_name?: string; tier?: string } = {
         model: newModel,
         connection_name: newConnectionName.trim() || undefined,
+        tier: newTier,
       };
       if (newApiKey.trim()) {
         payload.api_key = newApiKey.trim();
@@ -314,6 +319,7 @@ export function AnthropicIntegrationDetails({
       setSuccessMessage(res.message || "Claude connection updated successfully.");
       setNewApiKey("");
       setEditingKey(false);
+      // Force refresh data immediately so new tier telemetry shows
       await loadReports(true);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Failed to update Anthropic credentials.");
@@ -322,14 +328,17 @@ export function AnthropicIntegrationDetails({
     }
   }
 
+  // Pure dynamic telemetry (no hardcoded fallback numbers)
   const totals = report?.usage?.totals;
-  const uncached = totals?.uncached_input_tokens || 389400;
-  const cacheRead = totals?.cache_read_input_tokens || 134400;
-  const cacheCreate = totals?.cache_creation_input_tokens || 54000;
-  const output = totals?.output_tokens || 57840;
-  const totalTokens = uncached + cacheRead + cacheCreate + output;
+  const requestsCount = totals?.requests ?? 0;
+  const uncached = totals?.uncached_input_tokens ?? 0;
+  const cacheRead = totals?.cache_read_input_tokens ?? 0;
+  const cacheCreate = totals?.cache_creation_input_tokens ?? 0;
+  const output = totals?.output_tokens ?? 0;
+  const totalTokens = totals?.total_tokens ?? (uncached + cacheRead + cacheCreate + output);
+  const reportedCostStr = report?.cost ? `${report.cost.currency} ${report.cost.total}` : "USD 0.00";
 
-  // Pie chart datasets
+  // Dynamic Pie Chart Data from report.usage.by_model
   const modelChartData = useMemo(() => {
     if (report?.usage?.by_model && report.usage.by_model.length > 0) {
       return report.usage.by_model.map((m, idx) => ({
@@ -339,29 +348,12 @@ export function AnthropicIntegrationDetails({
         color: PALETTE[idx % PALETTE.length],
       }));
     }
-    return [
-      {
-        label: current.model || "claude-3-7-sonnet",
-        value: 581240,
-        formatted: "581.2K tokens",
-        color: "#7c3aed",
-      },
-      {
-        label: "claude-3-5-haiku",
-        value: 144000,
-        formatted: "144.0K tokens",
-        color: "#0891b2",
-      },
-      {
-        label: "claude-3-5-sonnet",
-        value: 98000,
-        formatted: "98.0K tokens",
-        color: "#d97706",
-      },
-    ];
-  }, [report, current.model]);
+    return [];
+  }, [report]);
 
+  // Dynamic Token Composition Data
   const tokenCompositionData = useMemo(() => {
+    if (totalTokens <= 0) return [];
     return [
       {
         label: "Uncached Input",
@@ -387,25 +379,23 @@ export function AnthropicIntegrationDetails({
         formatted: `${formatTokensCompact(output)} tokens`,
         color: "#059669",
       },
-    ];
-  }, [uncached, cacheRead, cacheCreate, output]);
+    ].filter((item) => item.value > 0);
+  }, [uncached, cacheRead, cacheCreate, output, totalTokens]);
 
+  // Dynamic Cost Distribution Data from report.cost.by_cost_type
   const costDistributionData = useMemo(() => {
     if (report?.cost?.by_cost_type && report.cost.by_cost_type.length > 0) {
       return report.cost.by_cost_type.map((c, idx) => ({
         label: c.cost_type,
-        value: Math.max(0.01, parseFloat(c.amount) || 0),
+        value: Math.max(0, parseFloat(c.amount) || 0),
         formatted: `${c.currency} ${c.amount}`,
         color: idx === 0 ? "#059669" : "#d97706",
       }));
     }
-    return [
-      { label: "Token Compute", value: 17.04, formatted: "USD 17.04", color: "#059669" },
-      { label: "Prompt Caching", value: 0.45, formatted: "USD 0.45", color: "#d97706" },
-    ];
+    return [];
   }, [report]);
 
-  // Daily activity bars
+  // Dynamic Daily activity velocity bars calculated from totalTokens
   const dailyActivityBars = useMemo(() => {
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const baseVal = Math.round(totalTokens / 7);
@@ -420,7 +410,7 @@ export function AnthropicIntegrationDetails({
     });
   }, [totalTokens]);
 
-  const balanceStatus = report?.balance?.status || "PAY_AS_YOU_GO";
+  const balanceStatus = report?.balance?.status || "ENTERPRISE";
 
   return (
     <div className="hub-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -461,7 +451,11 @@ export function AnthropicIntegrationDetails({
         )}
 
         {successMessage && (
-          <div className="hub-notice" style={{ borderColor: "#10b981", background: "rgba(16, 185, 129, 0.08)", color: "#065f46" }} role="status">
+          <div
+            className="hub-notice"
+            style={{ borderColor: "#10b981", background: "rgba(16, 185, 129, 0.08)", color: "#065f46" }}
+            role="status"
+          >
             {successMessage}
           </div>
         )}
@@ -481,9 +475,10 @@ export function AnthropicIntegrationDetails({
                   setEditingKey(true);
                   setNewModel(current.model || "claude-3-7-sonnet-20250219");
                   setNewConnectionName(current.connection_name || "");
+                  setNewTier(balanceStatus);
                 }}
               >
-                <KeyRound size={14} /> Change API Key / Model
+                <KeyRound size={14} /> Change API Key / Tier
               </button>
             )}
           </div>
@@ -500,8 +495,10 @@ export function AnthropicIntegrationDetails({
                 <strong>{current.model || "claude-3-7-sonnet-20250219"}</strong>
               </div>
               <div>
-                <span>Messages API</span>
-                <strong className="hub-status-positive">Available (Pay-as-you-go & Free Tier ready)</strong>
+                <span>Account Plan / Tier</span>
+                <strong style={{ color: "var(--accent, #7c3aed)", fontWeight: 700 }}>
+                  {balanceStatus.replace(/_/g, " ")}
+                </strong>
               </div>
               <div>
                 <span>Last Verified</span>
@@ -521,7 +518,7 @@ export function AnthropicIntegrationDetails({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <strong style={{ fontSize: 14 }}>Update Anthropic Credentials & Model</strong>
+                <strong style={{ fontSize: 14 }}>Update Anthropic Credentials & Tier</strong>
                 <button
                   type="button"
                   className="hub-secondary-button small"
@@ -534,7 +531,7 @@ export function AnthropicIntegrationDetails({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span>
-                    New API Key <small style={{ color: "#64748b" }}>(leave blank to keep current key)</small>
+                    New API Key <small style={{ color: "#64748b" }}>(leave blank to retain current key)</small>
                   </span>
                   <div className="hub-password-field">
                     <input
@@ -566,7 +563,16 @@ export function AnthropicIntegrationDetails({
                 </label>
               </div>
 
-              <div style={{ marginTop: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span>Account Tier / Plan</span>
+                  <select value={newTier} onChange={(e) => setNewTier(e.target.value)} required>
+                    <option value="ENTERPRISE">🏢 Company / Enterprise (Team spend, high volume & analytics)</option>
+                    <option value="PAY_AS_YOU_GO">⚡ Pay-As-You-Go (Developer metered billing)</option>
+                    <option value="FREE_TIER">🌱 Free Tier (Starter community trial)</option>
+                  </select>
+                </label>
+
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span>Connection Name</span>
                   <input
@@ -588,11 +594,7 @@ export function AnthropicIntegrationDetails({
                 >
                   <ArrowLeft size={14} /> Back
                 </button>
-                <button
-                  type="submit"
-                  className="hub-primary-button"
-                  disabled={savingKey}
-                >
+                <button type="submit" className="hub-primary-button" disabled={savingKey}>
                   {savingKey ? "Verifying & Saving…" : "Save Changes"} <ArrowRight size={14} />
                 </button>
               </div>
@@ -636,7 +638,7 @@ export function AnthropicIntegrationDetails({
               <div className="hub-anthropic-stat-grid">
                 <div>
                   <span>Requests</span>
-                  <strong>{formatNumber(totals?.requests || 154)}</strong>
+                  <strong>{formatNumber(requestsCount)}</strong>
                 </div>
                 <div>
                   <span>Input Tokens</span>
@@ -648,7 +650,7 @@ export function AnthropicIntegrationDetails({
                 </div>
                 <div>
                   <span>Reported Cost</span>
-                  <strong>{report?.cost ? `${report.cost.currency} ${report.cost.total}` : "USD 17.49"}</strong>
+                  <strong>{reportedCostStr}</strong>
                 </div>
               </div>
 
@@ -657,7 +659,7 @@ export function AnthropicIntegrationDetails({
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
                   <Sparkles size={16} style={{ color: "var(--accent, #7c3aed)" }} />
                   <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
-                    Telemetry Visualizations & Graphs
+                    Telemetry Visualizations & Graphs ({balanceStatus.replace(/_/g, " ")})
                   </span>
                 </div>
 
@@ -687,7 +689,7 @@ export function AnthropicIntegrationDetails({
                     title="Expenditure Breakdown"
                     subtitle="Spend by Type"
                     items={costDistributionData}
-                    centerTotal={report?.cost ? `${report.cost.currency} ${report.cost.total}` : "USD 17.49"}
+                    centerTotal={reportedCostStr}
                     centerLabel="Total Spend"
                   />
 
@@ -713,16 +715,9 @@ export function AnthropicIntegrationDetails({
                       </div>
                     ))
                   ) : (
-                    <>
-                      <div className="hub-anthropic-row">
-                        <span>{current.model || "claude-3-7-sonnet-20250219"}</span>
-                        <strong>{formatNumber(581240)} tokens</strong>
-                      </div>
-                      <div className="hub-anthropic-row">
-                        <span>claude-3-5-haiku-20241022</span>
-                        <strong>{formatNumber(144000)} tokens</strong>
-                      </div>
-                    </>
+                    <p className="hub-settings-muted" style={{ padding: 12 }}>
+                      No model activity recorded.
+                    </p>
                   )}
                 </div>
                 <div>
@@ -737,16 +732,9 @@ export function AnthropicIntegrationDetails({
                       </div>
                     ))
                   ) : (
-                    <>
-                      <div className="hub-anthropic-row">
-                        <span>Tokens</span>
-                        <strong>USD 17.04</strong>
-                      </div>
-                      <div className="hub-anthropic-row">
-                        <span>Prompt Caching</span>
-                        <strong>USD 0.45</strong>
-                      </div>
-                    </>
+                    <p className="hub-settings-muted" style={{ padding: 12 }}>
+                      No expenditure recorded.
+                    </p>
                   )}
                 </div>
               </div>
@@ -754,7 +742,7 @@ export function AnthropicIntegrationDetails({
           )}
         </section>
 
-        {/* Account Tier & Balance Section (Manual billing form removed as requested) */}
+        {/* Account Tier & Balance Section */}
         <section className="hub-anthropic-section">
           <div className="hub-anthropic-heading">
             <div>
@@ -801,7 +789,7 @@ export function AnthropicIntegrationDetails({
                   {report?.balance?.currency || "USD"} {report?.balance?.amount || "0.00"}
                 </strong>
                 <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#64748b" }}>
-                  {report?.balance?.message || "Metered usage billing linked to Anthropic account."}
+                  {report?.balance?.message || "Usage billing linked to Anthropic account."}
                 </p>
               </div>
             </div>

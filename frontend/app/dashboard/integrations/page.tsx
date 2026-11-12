@@ -304,9 +304,9 @@ export default function IntegrationsPage() {
             setAzure([result]);
           }, "Azure connected successfully.")
         }
-        onSubmitAnthropic={(key, model, name) =>
+        onSubmitAnthropic={(key, model, name, tier) =>
           submit(async () => {
-            const result = await connectAnthropic(key, model, name);
+            const result = await connectAnthropic(key, model, name, tier);
             setAnthropic((items) => [
               result.connection,
               ...items.filter((item) => item.id !== result.connection.id),

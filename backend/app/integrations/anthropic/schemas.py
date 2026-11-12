@@ -8,6 +8,7 @@ class AnthropicConnectRequest(BaseModel):
     api_key: SecretStr = Field(min_length=1)
     model: str = Field(min_length=1, max_length=255)
     connection_name: Optional[str] = Field(default=None, max_length=255)
+    tier: Optional[str] = Field(default="ENTERPRISE", max_length=50)
 
     def secret_value(self) -> str:
         return self.api_key.get_secret_value()
@@ -17,6 +18,7 @@ class AnthropicUpdateRequest(BaseModel):
     api_key: Optional[SecretStr] = None
     model: Optional[str] = None
     connection_name: Optional[str] = None
+    tier: Optional[str] = None
 
     def secret_value(self) -> Optional[str]:
         return self.api_key.get_secret_value() if self.api_key else None

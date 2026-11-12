@@ -573,10 +573,10 @@ export interface AnthropicReportResponse {
 }
 export interface AnthropicAdminCredentialResponse { connection_id: number; admin_access_status: string; admin_verified_at: string; message: string; }
 export async function listAnthropicConnections(): Promise<AnthropicConnection[]> { return apiRequest<AnthropicConnection[]>("/integrations/anthropic/connections"); }
-export async function connectAnthropic(apiKey: string, model: string, connectionName?: string): Promise<AnthropicConnectResponse> {
-  return apiRequest<AnthropicConnectResponse>("/integrations/anthropic/connections", { method: "POST", body: JSON.stringify({ api_key: apiKey, model, ...(connectionName?.trim() ? { connection_name: connectionName.trim() } : {}) }) });
+export async function connectAnthropic(apiKey: string, model: string, connectionName?: string, tier?: string): Promise<AnthropicConnectResponse> {
+  return apiRequest<AnthropicConnectResponse>("/integrations/anthropic/connections", { method: "POST", body: JSON.stringify({ api_key: apiKey, model, ...(connectionName?.trim() ? { connection_name: connectionName.trim() } : {}), ...(tier ? { tier } : {}) }) });
 }
-export async function updateAnthropicConnection(connectionId: number, data: { api_key?: string; model?: string; connection_name?: string }): Promise<AnthropicConnectResponse> {
+export async function updateAnthropicConnection(connectionId: number, data: { api_key?: string; model?: string; connection_name?: string; tier?: string }): Promise<AnthropicConnectResponse> {
   return apiRequest<AnthropicConnectResponse>(`/integrations/anthropic/connections/${connectionId}`, { method: "PUT", body: JSON.stringify(data) });
 }
 export async function testAnthropicConnection(connectionId: number): Promise<AnthropicTestResponse> { return apiRequest<AnthropicTestResponse>(`/integrations/anthropic/connections/${connectionId}/test`, { method: "POST" }); }

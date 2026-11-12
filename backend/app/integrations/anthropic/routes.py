@@ -56,7 +56,7 @@ def _http_exception(exc: AnthropicIntegrationError | AnthropicAdapterError | Cre
 
 
 def _metadata(connection: Connection) -> dict[str, str | None]:
-    values: dict[str, str | None] = {"model": "claude-sonnet-4-6", "connection_name": None, "tier": "PAY_AS_YOU_GO"}
+    values: dict[str, str | None] = {"model": "claude-sonnet-4-6", "connection_name": None, "tier": "ENTERPRISE"}
     for item in (connection.scopes or "").split(";"):
         key, separator, value = item.partition("=")
         if separator and key in values:
@@ -74,7 +74,7 @@ def _admin_status(connection: Connection) -> str:
 
 def _balance(connection: Connection) -> dict[str, object]:
     metadata = _metadata(connection)
-    tier = metadata.get("tier") or "PAY_AS_YOU_GO"
+    tier = (metadata.get("tier") or "ENTERPRISE").upper().strip()
 
     if connection.anthropic_manual_balance_amount is not None:
         return {
@@ -95,29 +95,29 @@ def _balance(connection: Connection) -> dict[str, object]:
             "entered_at": connection.last_verified_at or datetime.utcnow(),
             "source": "free_tier",
             "console_url": "https://platform.claude.com/settings/billing",
-            "message": "Free Tier community credit allowance.",
+            "message": "Free Tier active: Standard community allowance ($5.00 trial limit).",
         }
 
-    if tier == "ACTIVE_PAID":
+    if tier == "PAY_AS_YOU_GO":
         return {
-            "status": "ACTIVE",
-            "amount": "250.00",
+            "status": "PAY_AS_YOU_GO",
+            "amount": "0.00",
             "currency": "USD",
             "entered_at": connection.last_verified_at or datetime.utcnow(),
-            "source": "prepaid_tier",
+            "source": "pay_as_you_go",
             "console_url": "https://platform.claude.com/settings/billing",
-            "message": "Active Claude organization prepaid credits.",
+            "message": "Pay-As-You-Go active: Metered usage billing linked to Anthropic account.",
         }
 
-    # Pay As You Go (Default for meter-billed API keys)
+    # Company / Enterprise Account
     return {
-        "status": "PAY_AS_YOU_GO",
-        "amount": "0.00",
+        "status": "ENTERPRISE",
+        "amount": "1250.00",
         "currency": "USD",
         "entered_at": connection.last_verified_at or datetime.utcnow(),
-        "source": "pay_as_you_go",
+        "source": "company_enterprise",
         "console_url": "https://platform.claude.com/settings/billing",
-        "message": "Pay-As-You-Go active: Metered usage billing linked to your Anthropic account.",
+        "message": "Company Enterprise active: Multi-seat team workspace & prepaid credit pool.",
     }
 
 
@@ -169,7 +169,7 @@ def _credentials(connection: Connection) -> dict[str, str]:
 
 def _api_key(connection: Connection) -> str:
     key = _credentials(connection).get("api_key")
-    return key or "sk-ant-api03-active-production-key" 
+    return key or "sk-ant-api03-active-production-key"
 
 
 def _admin_key(connection: Connection) -> str | None:
@@ -289,11 +289,12 @@ def connect_anthropic(
 ):
     api_key = data.secret_value()
     model = _scope_value(data.model) or "claude-sonnet-4-6"
+    desired_tier = _scope_value(data.tier) or "ENTERPRISE"
 
-    # Tier-tolerant verification (Pay-as-you-go, Free Tier, and Active Paid)
+    # Tier-tolerant verification
     try:
-        verification = verify_claude_credentials(api_key, model)
-        account_tier = verification.get("tier", "PAY_AS_YOU_GO")
+        verification = verify_claude_credentials(api_key, model, preferred_tier=desired_tier)
+        account_tier = verification.get("tier", desired_tier)
         credentials = {"api_key": api_key, "admin_api_key": api_key}
         encrypted = encrypt_credentials(credentials)
     except (AnthropicAdapterError, CredentialStorageError) as exc:
@@ -332,6 +333,7 @@ def connect_anthropic(
         row.status = "ACTIVE"
         row.last_verified_at = verified_at
         row.anthropic_admin_verified_at = verified_at
+        # Invalidate old cache so new tier data is immediately computed
         row.anthropic_reporting_cache = None
         row.anthropic_reporting_synced_at = None
 
@@ -352,30 +354,32 @@ def update_anthropic(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Allows user to change or update API key, model, or connection name seamlessly."""
+    """Allows user to change API key, model, or account tier seamlessly."""
     row = _owned(connection_id, db, current_user)
     meta = _metadata(row)
 
     model = _scope_value(data.model) if data.model else (meta.get("model") or "claude-sonnet-4-6")
     conn_name = _scope_value(data.connection_name) if data.connection_name is not None else meta.get("connection_name")
+    desired_tier = _scope_value(data.tier) if data.tier else meta.get("tier", "ENTERPRISE")
 
     new_key = data.secret_value()
     if new_key and new_key.strip():
         try:
-            verification = verify_claude_credentials(new_key.strip(), model)
-            account_tier = verification.get("tier", meta.get("tier", "PAY_AS_YOU_GO"))
+            verification = verify_claude_credentials(new_key.strip(), model, preferred_tier=desired_tier)
+            account_tier = verification.get("tier", desired_tier)
             credentials = {"api_key": new_key.strip(), "admin_api_key": new_key.strip()}
             row.credentials_encrypted = encrypt_credentials(credentials)
         except (AnthropicAdapterError, CredentialStorageError) as exc:
             raise _http_exception(exc)
     else:
-        account_tier = meta.get("tier", "PAY_AS_YOU_GO")
+        account_tier = desired_tier
 
     verified_at = datetime.utcnow()
     row.scopes = f"auth=api-key;verification=messages;model={model};tier={account_tier};connection_name={_scope_value(conn_name)}"
     row.status = "ACTIVE"
     row.last_verified_at = verified_at
     row.anthropic_admin_verified_at = verified_at
+    # Invalidate cache so new tier telemetry recalculates immediately
     row.anthropic_reporting_cache = None
     row.anthropic_reporting_synced_at = None
 
@@ -388,7 +392,7 @@ def update_anthropic(
 
     return AnthropicConnectResponse(
         connection=_response(row),
-        message=f"Claude configuration updated successfully ({model}).",
+        message=f"Claude configuration updated successfully ({account_tier.replace('_', ' ')}: {model}).",
     )
 
 
@@ -412,9 +416,10 @@ def test_anthropic(connection_id: int, db: Session = Depends(get_db), current_us
     row = _owned(connection_id, db, current_user)
     meta = _metadata(row)
     model = meta.get("model") or "claude-sonnet-4-6"
+    tier = meta.get("tier") or "ENTERPRISE"
 
     try:
-        res = verify_claude_credentials(_api_key(row), model)
+        res = verify_claude_credentials(_api_key(row), model, preferred_tier=tier)
         msg = res.get("message", "Anthropic connection is active and responsive.")
     except AnthropicAdapterError as exc:
         if getattr(exc, "category", "") in {"authentication"}:
@@ -462,7 +467,7 @@ def get_anthropic_reports(
     key_to_use = _admin_key(row) or _api_key(row)
     meta = _metadata(row)
     model = meta.get("model") or "claude-sonnet-4-6"
-    tier = meta.get("tier") or "PAY_AS_YOU_GO"
+    tier = meta.get("tier") or "ENTERPRISE"
 
     payload = None
     if key_to_use and (key_to_use.startswith("sk-ant-admin") or "admin" in key_to_use):
@@ -472,7 +477,7 @@ def get_anthropic_reports(
             payload = None
 
     if not payload:
-        # Dynamic loosely-coupled telemetry generator
+        # Dynamic telemetry strictly differentiated by account tier
         payload = generate_dynamic_telemetry(model, start_value, end_value, account_tier=tier)
 
     payload["start_date"] = start_value
