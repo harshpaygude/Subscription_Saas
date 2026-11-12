@@ -576,6 +576,9 @@ export async function listAnthropicConnections(): Promise<AnthropicConnection[]>
 export async function connectAnthropic(apiKey: string, model: string, connectionName?: string): Promise<AnthropicConnectResponse> {
   return apiRequest<AnthropicConnectResponse>("/integrations/anthropic/connections", { method: "POST", body: JSON.stringify({ api_key: apiKey, model, ...(connectionName?.trim() ? { connection_name: connectionName.trim() } : {}) }) });
 }
+export async function updateAnthropicConnection(connectionId: number, data: { api_key?: string; model?: string; connection_name?: string }): Promise<AnthropicConnectResponse> {
+  return apiRequest<AnthropicConnectResponse>(`/integrations/anthropic/connections/${connectionId}`, { method: "PUT", body: JSON.stringify(data) });
+}
 export async function testAnthropicConnection(connectionId: number): Promise<AnthropicTestResponse> { return apiRequest<AnthropicTestResponse>(`/integrations/anthropic/connections/${connectionId}/test`, { method: "POST" }); }
 export async function disconnectAnthropic(connectionId: number): Promise<{ message: string }> { return apiRequest<{ message: string }>(`/integrations/anthropic/connections/${connectionId}`, { method: "DELETE" }); }
 export async function configureAnthropicAdminCredential(connectionId: number, adminApiKey: string): Promise<AnthropicAdminCredentialResponse> { return apiRequest<AnthropicAdminCredentialResponse>(`/integrations/anthropic/connections/${connectionId}/admin-credential`, { method: "POST", body: JSON.stringify({ admin_api_key: adminApiKey }) }); }

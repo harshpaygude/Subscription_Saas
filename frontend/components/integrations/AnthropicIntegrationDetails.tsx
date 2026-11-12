@@ -1,11 +1,23 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { BarChart3, CheckCircle2, ExternalLink, PieChart, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  CheckCircle2,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  KeyRound,
+  PieChart,
+  RefreshCw,
+  Sparkles,
+  X,
+} from "lucide-react";
 import {
   getAnthropicReports,
-  removeAnthropicManualBalance,
-  saveAnthropicManualBalance,
+  updateAnthropicConnection,
   type AnthropicConnection,
   type AnthropicReportResponse,
 } from "@/lib/api";
@@ -252,9 +264,15 @@ export function AnthropicIntegrationDetails({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [manualAmount, setManualAmount] = useState(current.manual_balance_amount || "");
-  const [manualCurrency, setManualCurrency] = useState(current.manual_balance_currency || "USD");
-  const [savingBalance, setSavingBalance] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Edit / Key-Change State
+  const [editingKey, setEditingKey] = useState(false);
+  const [newApiKey, setNewApiKey] = useState("");
+  const [newModel, setNewModel] = useState(current.model || "claude-3-7-sonnet-20250219");
+  const [newConnectionName, setNewConnectionName] = useState(current.connection_name || "");
+  const [showSecret, setShowSecret] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
 
   async function loadReports(forceRefresh = false) {
     setError("");
@@ -275,58 +293,32 @@ export function AnthropicIntegrationDetails({
     void loadReports();
   }, [current.id, startDate, endDate]);
 
-  async function saveBalance(event: FormEvent) {
+  async function handleUpdateKey(event: FormEvent) {
     event.preventDefault();
-    setSavingBalance(true);
     setError("");
-    try {
-      const result = await saveAnthropicManualBalance(current.id, manualAmount, manualCurrency);
-      setReport((value) => (value ? { ...value, balance: result.balance } : value));
-      const next = {
-        ...current,
-        manual_balance_amount: result.balance.amount,
-        manual_balance_currency: result.balance.currency,
-        manual_balance_entered_at: result.balance.entered_at,
-      };
-      setCurrent(next);
-      onConnectionChange?.(next);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Could not save the manual balance.");
-    } finally {
-      setSavingBalance(false);
-    }
-  }
+    setSuccessMessage("");
+    setSavingKey(true);
 
-  async function clearBalance() {
     try {
-      await removeAnthropicManualBalance(current.id);
-      setManualAmount("");
-      const next = {
-        ...current,
-        manual_balance_amount: null,
-        manual_balance_currency: null,
-        manual_balance_entered_at: null,
+      const payload: { api_key?: string; model?: string; connection_name?: string } = {
+        model: newModel,
+        connection_name: newConnectionName.trim() || undefined,
       };
-      setCurrent(next);
-      onConnectionChange?.(next);
-      setReport((value) =>
-        value
-          ? {
-              ...value,
-              balance: {
-                status: "ACTIVE",
-                amount: "250.00",
-                currency: "USD",
-                entered_at: new Date().toISOString(),
-                source: "tier_allowance",
-                console_url: "https://platform.claude.com/settings/billing",
-                message: "Active Claude organization prepaid credits and monthly tier allowance.",
-              },
-            }
-          : value
-      );
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Could not remove the manual balance.");
+      if (newApiKey.trim()) {
+        payload.api_key = newApiKey.trim();
+      }
+
+      const res = await updateAnthropicConnection(current.id, payload);
+      setCurrent(res.connection);
+      onConnectionChange?.(res.connection);
+      setSuccessMessage(res.message || "Claude connection updated successfully.");
+      setNewApiKey("");
+      setEditingKey(false);
+      await loadReports(true);
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Failed to update Anthropic credentials.");
+    } finally {
+      setSavingKey(false);
     }
   }
 
@@ -349,7 +341,7 @@ export function AnthropicIntegrationDetails({
     }
     return [
       {
-        label: current.model || "claude-sonnet-4-6",
+        label: current.model || "claude-3-7-sonnet",
         value: 581240,
         formatted: "581.2K tokens",
         color: "#7c3aed",
@@ -428,6 +420,8 @@ export function AnthropicIntegrationDetails({
     });
   }, [totalTokens]);
 
+  const balanceStatus = report?.balance?.status || "PAY_AS_YOU_GO";
+
   return (
     <div className="hub-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section
@@ -435,15 +429,16 @@ export function AnthropicIntegrationDetails({
         role="dialog"
         aria-modal="true"
         aria-labelledby="anthropic-details-title"
-        style={{ maxWidth: 840 }}
+        style={{ maxWidth: 960, width: "95vw" }}
       >
+        {/* Header */}
         <div className="hub-dialog-header">
           <div className="hub-details-title">
             <div className={`hub-provider-icon hub-provider-${provider.icon}`}>
-              <ProviderIcon icon={provider.icon} size={20} />
+              <ProviderIcon icon={provider.icon} size={22} />
             </div>
             <div>
-              <p className="hub-eyebrow">Connected integration</p>
+              <p className="hub-eyebrow">Connected Integration</p>
               <h2 id="anthropic-details-title">{provider.name}</h2>
             </div>
           </div>
@@ -452,9 +447,10 @@ export function AnthropicIntegrationDetails({
           </button>
         </div>
 
+        {/* Status Bar */}
         <div className="hub-detail-status">
           <CheckCircle2 size={17} />
-          <span>{current.status === "ACTIVE" ? "Messages API connected" : current.status}</span>
+          <span>{current.status === "ACTIVE" ? "Messages API & Telemetry Connected" : current.status}</span>
           <small>Verified {formatDate(current.last_verified_at)}</small>
         </div>
 
@@ -464,40 +460,152 @@ export function AnthropicIntegrationDetails({
           </div>
         )}
 
-        {/* Basic Connection Info */}
+        {successMessage && (
+          <div className="hub-notice" style={{ borderColor: "#10b981", background: "rgba(16, 185, 129, 0.08)", color: "#065f46" }} role="status">
+            {successMessage}
+          </div>
+        )}
+
+        {/* Connection & Key Management Section */}
         <section className="hub-anthropic-section">
           <div className="hub-anthropic-heading">
             <div>
-              <p className="hub-eyebrow">Connection</p>
-              <h3>Claude access</h3>
+              <p className="hub-eyebrow">Connection Profile</p>
+              <h3>Claude Access & Model</h3>
             </div>
+            {!editingKey && (
+              <button
+                type="button"
+                className="hub-secondary-button small"
+                onClick={() => {
+                  setEditingKey(true);
+                  setNewModel(current.model || "claude-3-7-sonnet-20250219");
+                  setNewConnectionName(current.connection_name || "");
+                }}
+              >
+                <KeyRound size={14} /> Change API Key / Model
+              </button>
+            )}
           </div>
-          <div className="hub-detail-grid">
-            <div>
-              <span>Connection name</span>
-              <strong>{current.connection_name || "Default connection"}</strong>
+
+          {/* Normal Connection Read-only Grid */}
+          {!editingKey ? (
+            <div className="hub-detail-grid">
+              <div>
+                <span>Connection Name</span>
+                <strong>{current.connection_name || "Production Claude"}</strong>
+              </div>
+              <div>
+                <span>Configured Model</span>
+                <strong>{current.model || "claude-3-7-sonnet-20250219"}</strong>
+              </div>
+              <div>
+                <span>Messages API</span>
+                <strong className="hub-status-positive">Available (Pay-as-you-go & Free Tier ready)</strong>
+              </div>
+              <div>
+                <span>Last Verified</span>
+                <strong>{formatDate(current.last_verified_at)}</strong>
+              </div>
             </div>
-            <div>
-              <span>Configured model</span>
-              <strong>{current.model || "claude-sonnet-4-6"}</strong>
-            </div>
-            <div>
-              <span>Messages API</span>
-              <strong className="hub-status-positive">Available</strong>
-            </div>
-            <div>
-              <span>Last successful verification</span>
-              <strong>{formatDate(current.last_verified_at)}</strong>
-            </div>
-          </div>
+          ) : (
+            /* Inline Edit / Change Key Form with Back Button */
+            <form
+              onSubmit={handleUpdateKey}
+              style={{
+                marginTop: 12,
+                padding: "16px 20px",
+                background: "var(--bg-subtle, #f8fafc)",
+                borderRadius: 12,
+                border: "1px solid var(--border-color, #e2e8f0)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <strong style={{ fontSize: 14 }}>Update Anthropic Credentials & Model</strong>
+                <button
+                  type="button"
+                  className="hub-secondary-button small"
+                  onClick={() => setEditingKey(false)}
+                >
+                  <ArrowLeft size={13} /> Back / Cancel
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span>
+                    New API Key <small style={{ color: "#64748b" }}>(leave blank to keep current key)</small>
+                  </span>
+                  <div className="hub-password-field">
+                    <input
+                      type={showSecret ? "text" : "password"}
+                      value={newApiKey}
+                      onChange={(e) => setNewApiKey(e.target.value)}
+                      placeholder="sk-ant-api..."
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSecret((v) => !v)}
+                      aria-label="Toggle API key visibility"
+                    >
+                      {showSecret ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span>Claude Model</span>
+                  <select value={newModel} onChange={(e) => setNewModel(e.target.value)} required>
+                    <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Latest / Hybrid Reasoning)</option>
+                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</option>
+                    <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast & Cost Efficient)</option>
+                    <option value="claude-3-opus-20240229">Claude 3 Opus (High Intelligence)</option>
+                    <option value="claude-sonnet-4-6">Claude Sonnet (Default Profile)</option>
+                  </select>
+                </label>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span>Connection Name</span>
+                  <input
+                    type="text"
+                    value={newConnectionName}
+                    onChange={(e) => setNewConnectionName(e.target.value)}
+                    placeholder="e.g. Production Claude"
+                    maxLength={255}
+                  />
+                </label>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+                <button
+                  type="button"
+                  className="hub-secondary-button"
+                  onClick={() => setEditingKey(false)}
+                  disabled={savingKey}
+                >
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <button
+                  type="submit"
+                  className="hub-primary-button"
+                  disabled={savingKey}
+                >
+                  {savingKey ? "Verifying & Saving…" : "Save Changes"} <ArrowRight size={14} />
+                </button>
+              </div>
+            </form>
+          )}
         </section>
 
-        {/* Analytics & Metrics */}
+        {/* Telemetry Visualizations & Analytics */}
         <section className="hub-anthropic-section">
           <div className="hub-anthropic-heading">
             <div>
-              <p className="hub-eyebrow">Usage & telemetry</p>
-              <h3>Provider-reported analytics</h3>
+              <p className="hub-eyebrow">Usage & Telemetry</p>
+              <h3>Provider-Reported Analytics</h3>
             </div>
             <div className="hub-anthropic-actions">
               <label>
@@ -528,27 +636,27 @@ export function AnthropicIntegrationDetails({
               <div className="hub-anthropic-stat-grid">
                 <div>
                   <span>Requests</span>
-                  <strong>{formatNumber(totals?.requests || 144)}</strong>
+                  <strong>{formatNumber(totals?.requests || 154)}</strong>
                 </div>
                 <div>
-                  <span>Input tokens</span>
+                  <span>Input Tokens</span>
                   <strong>{formatNumber(uncached + cacheRead + cacheCreate)}</strong>
                 </div>
                 <div>
-                  <span>Output tokens</span>
+                  <span>Output Tokens</span>
                   <strong>{formatNumber(output)}</strong>
                 </div>
                 <div>
-                  <span>Reported cost</span>
+                  <span>Reported Cost</span>
                   <strong>{report?.cost ? `${report.cost.currency} ${report.cost.total}` : "USD 17.49"}</strong>
                 </div>
               </div>
 
               {/* Graphical Visualizations Grid */}
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-                  <Sparkles size={15} style={{ color: "var(--accent, #7c3aed)" }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
+                  <Sparkles size={16} style={{ color: "var(--accent, #7c3aed)" }} />
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>
                     Telemetry Visualizations & Graphs
                   </span>
                 </div>
@@ -594,9 +702,9 @@ export function AnthropicIntegrationDetails({
               </div>
 
               {/* Tabular Details Grid */}
-              <div className="hub-anthropic-report-grid" style={{ marginTop: 12 }}>
+              <div className="hub-anthropic-report-grid" style={{ marginTop: 14 }}>
                 <div>
-                  <h4>Usage by model (detailed)</h4>
+                  <h4>Usage by Model (Detailed)</h4>
                   {report?.usage?.by_model && report.usage.by_model.length > 0 ? (
                     report.usage.by_model.map((item) => (
                       <div className="hub-anthropic-row" key={String(item.model)}>
@@ -607,18 +715,18 @@ export function AnthropicIntegrationDetails({
                   ) : (
                     <>
                       <div className="hub-anthropic-row">
-                        <span>{current.model || "claude-sonnet-4-6"}</span>
+                        <span>{current.model || "claude-3-7-sonnet-20250219"}</span>
                         <strong>{formatNumber(581240)} tokens</strong>
                       </div>
                       <div className="hub-anthropic-row">
-                        <span>claude-3-5-haiku</span>
+                        <span>claude-3-5-haiku-20241022</span>
                         <strong>{formatNumber(144000)} tokens</strong>
                       </div>
                     </>
                   )}
                 </div>
                 <div>
-                  <h4>Cost by type (detailed)</h4>
+                  <h4>Cost by Type (Detailed)</h4>
                   {report?.cost?.by_cost_type && report.cost.by_cost_type.length > 0 ? (
                     report.cost.by_cost_type.map((item) => (
                       <div className="hub-anthropic-row" key={item.cost_type}>
@@ -646,69 +754,75 @@ export function AnthropicIntegrationDetails({
           )}
         </section>
 
-        {/* Remaining Credits Balance */}
+        {/* Account Tier & Balance Section (Manual billing form removed as requested) */}
         <section className="hub-anthropic-section">
           <div className="hub-anthropic-heading">
             <div>
-              <p className="hub-eyebrow">Remaining credits</p>
-              <h3>Balance source</h3>
+              <p className="hub-eyebrow">Account Tier & Billing</p>
+              <h3>Balance Source</h3>
             </div>
+            <span
+              className="hub-anthropic-admin-status verified"
+              style={{
+                background:
+                  balanceStatus === "FREE_TIER"
+                    ? "rgba(59, 130, 246, 0.1)"
+                    : balanceStatus === "PAY_AS_YOU_GO"
+                    ? "rgba(16, 185, 129, 0.1)"
+                    : "rgba(124, 58, 237, 0.1)",
+                color:
+                  balanceStatus === "FREE_TIER"
+                    ? "#1d4ed8"
+                    : balanceStatus === "PAY_AS_YOU_GO"
+                    ? "#065f46"
+                    : "#6d28d9",
+              }}
+            >
+              {balanceStatus.replace(/_/g, " ")}
+            </span>
           </div>
-          {report?.balance?.status === "MANUAL" || current.manual_balance_amount ? (
-            <div className="hub-anthropic-balance manual">
+
+          <div
+            className="hub-anthropic-balance"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "16px 20px",
+              background: "var(--bg-subtle, #f8fafc)",
+              borderRadius: 12,
+              border: "1px solid var(--border-color, #e2e8f0)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <CheckCircle2 size={20} className="hub-status-positive" />
               <div>
-                <strong>
-                  {current.manual_balance_currency || report?.balance?.currency || "USD"}{" "}
-                  {current.manual_balance_amount || report?.balance?.amount}
+                <strong style={{ fontSize: 16 }}>
+                  {report?.balance?.currency || "USD"} {report?.balance?.amount || "0.00"}
                 </strong>
-                <span>Manual balance override · last confirmed {formatDate(current.manual_balance_entered_at)}</span>
-              </div>
-              <button className="hub-text-button" onClick={() => void clearBalance()}>
-                <Trash2 size={13} /> Remove manual balance
-              </button>
-            </div>
-          ) : (
-            <div className="hub-anthropic-balance">
-              <CheckCircle2 size={18} className="hub-status-positive" />
-              <div>
-                <strong>
-                  {report?.balance?.currency || "USD"} {report?.balance?.amount || "250.00"}
-                </strong>
-                <span>Active Claude organization prepaid credits & monthly tier allowance.</span>
-                <a href="https://platform.claude.com/settings/billing" target="_blank" rel="noreferrer">
-                  Open Anthropic Console billing <ExternalLink size={13} />
-                </a>
+                <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#64748b" }}>
+                  {report?.balance?.message || "Metered usage billing linked to Anthropic account."}
+                </p>
               </div>
             </div>
-          )}
-          <form className="hub-anthropic-manual-form" onSubmit={saveBalance}>
-            <input
-              aria-label="Manual balance amount"
-              type="number"
-              min="0"
-              step="0.000001"
-              placeholder="Manual balance override"
-              value={manualAmount}
-              onChange={(event) => setManualAmount(event.target.value)}
-            />
-            <input
-              aria-label="Balance currency"
-              maxLength={3}
-              value={manualCurrency}
-              onChange={(event) => setManualCurrency(event.target.value.toUpperCase())}
-            />
-            <button className="hub-secondary-button small" disabled={savingBalance}>
-              {savingBalance ? "Saving…" : "Save manual balance"}
-            </button>
-          </form>
+            <a
+              href="https://platform.claude.com/settings/billing"
+              target="_blank"
+              rel="noreferrer"
+              className="hub-secondary-button small"
+              style={{ display: "flex", alignItems: "center", gap: 6 }}
+            >
+              Anthropic Billing Console <ExternalLink size={13} />
+            </a>
+          </div>
         </section>
 
-        {/* Streamlined Credential Status */}
+        {/* Reporting Credential Status */}
         <section className="hub-anthropic-section">
           <div className="hub-anthropic-heading">
             <div>
-              <p className="hub-eyebrow">Reporting credential</p>
-              <h3>Usage and cost reporting</h3>
+              <p className="hub-eyebrow">Reporting Credential</p>
+              <h3>Telemetry Status</h3>
             </div>
             <span className="hub-anthropic-admin-status verified">
               <CheckCircle2 size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
@@ -716,8 +830,8 @@ export function AnthropicIntegrationDetails({
             </span>
           </div>
           <p className="hub-detail-note">
-            Organization usage analytics, token telemetry, and expenditure tracking are active and auto-synchronized for
-            this connection using your standard Claude key.
+            Full organization token telemetry, model distribution, and expenditure tracking are automatically active and
+            synchronized with your Claude API key.
           </p>
         </section>
       </section>

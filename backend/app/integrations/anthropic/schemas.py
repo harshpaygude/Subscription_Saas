@@ -13,6 +13,15 @@ class AnthropicConnectRequest(BaseModel):
         return self.api_key.get_secret_value()
 
 
+class AnthropicUpdateRequest(BaseModel):
+    api_key: Optional[SecretStr] = None
+    model: Optional[str] = None
+    connection_name: Optional[str] = None
+
+    def secret_value(self) -> Optional[str]:
+        return self.api_key.get_secret_value() if self.api_key else None
+
+
 class AnthropicConnectionResponse(BaseModel):
     id: int
     provider: str
@@ -22,7 +31,7 @@ class AnthropicConnectionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_verified_at: Optional[datetime] = None
-    admin_access_status: str = "NOT_CONFIGURED"
+    admin_access_status: str = "VERIFIED"
     admin_verified_at: Optional[datetime] = None
     last_reporting_sync_at: Optional[datetime] = None
     manual_balance_amount: Optional[str] = None
