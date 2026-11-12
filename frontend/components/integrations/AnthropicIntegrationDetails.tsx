@@ -295,7 +295,7 @@ export function AnthropicIntegrationDetails({
 
   useEffect(() => {
     void loadReports();
-  }, [current.id, startDate, endDate]);
+  }, [current.id, current.last_verified_at, current.scopes, startDate, endDate]);
 
   async function handleUpdateKey(event: FormEvent) {
     event.preventDefault();
