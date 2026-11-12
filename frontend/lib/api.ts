@@ -569,7 +569,7 @@ export interface AnthropicReportResponse {
   cost: { total: string; list_total: string; currency: string; by_cost_type: Array<{ cost_type: string; amount: string; currency: string }>; rows: Array<Record<string, string | number | null>>; data_refreshed_at: string | null } | null;
   data_refreshed_at: string | null;
   last_synced_at: string | null;
-  balance: { status: "UNSUPPORTED" | "MANUAL"; amount: string | null; currency: string | null; entered_at: string | null; source: string; console_url: string; message: string };
+  balance: { status: "UNSUPPORTED" | "MANUAL" | "ACTIVE" | string; amount: string | null; currency: string | null; entered_at: string | null; source: string; console_url: string; message: string };
 }
 export interface AnthropicAdminCredentialResponse { connection_id: number; admin_access_status: string; admin_verified_at: string; message: string; }
 export async function listAnthropicConnections(): Promise<AnthropicConnection[]> { return apiRequest<AnthropicConnection[]>("/integrations/anthropic/connections"); }

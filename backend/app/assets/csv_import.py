@@ -546,22 +546,39 @@ def process_asset_bulk_import(
                 if clean_email in users_by_email:
                     target_user = users_by_email[clean_email]
                 else:
-                    new_user = User(
-                        organization_id=org_id,
-                        email=clean_email,
-                        display_name=emp_name or assigned_ref,
-                        employee_id=emp_num or None,
-                        role="MEMBER",
-                        password_hash=hash_password(secrets.token_urlsafe(24)),
-                    )
-                    db.add(new_user)
-                    db.flush()
-                    target_user = new_user
-                    users_by_email[clean_email] = new_user
-                    if emp_num:
-                        users_by_empid[emp_num.lower()] = new_user
-                    if new_user.display_name:
-                        users_by_name[new_user.display_name.lower()] = new_user
+                    global_user = db.query(User).filter(User.email.ilike(clean_email)).first()
+                    if global_user and global_user.organization_id == org_id:
+                        target_user = global_user
+                        users_by_email[clean_email] = global_user
+                    else:
+                        email_to_assign = clean_email
+                        if global_user:
+                            at_sign = "@"
+                            base_local, domain = clean_email.split(at_sign, 1) if at_sign in clean_email else (clean_email, "workspace.internal")
+                            candidate = f"{base_local}+{org_id}@{domain}"
+                            suffix = 1
+                            while db.query(User).filter(User.email.ilike(candidate)).first():
+                                candidate = f"{base_local}+{org_id}.{suffix}@{domain}"
+                                suffix += 1
+                            email_to_assign = candidate
+
+                        new_user = User(
+                            organization_id=org_id,
+                            email=email_to_assign,
+                            display_name=emp_name or assigned_ref,
+                            employee_id=emp_num or None,
+                            role="MEMBER",
+                            password_hash=hash_password(secrets.token_urlsafe(24)),
+                        )
+                        db.add(new_user)
+                        db.flush()
+                        target_user = new_user
+                        users_by_email[clean_email] = new_user
+                        users_by_email[email_to_assign] = new_user
+                        if emp_num:
+                            users_by_empid[emp_num.lower()] = new_user
+                        if new_user.display_name:
+                            users_by_name[new_user.display_name.lower()] = new_user
 
         # Create or update Asset
         asset_obj = assets_by_tag.get(tag_key)

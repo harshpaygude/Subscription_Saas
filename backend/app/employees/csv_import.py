@@ -270,22 +270,39 @@ def process_bulk_import(
 
             if not target_user and email:
                 # Create user
-                random_pass = hash_password(secrets.token_urlsafe(24))
-                target_user = User(
-                    organization_id=org_id,
-                    email=email,
-                    display_name=full_name or email.split("@")[0].capitalize(),
-                    employee_id=emp_id or None,
-                    phone_number=phone or None,
-                    role="MEMBER",
-                    password_hash=random_pass,
-                )
-                db.add(target_user)
-                db.flush()
-                created_emp_count += 1
-                user_cache[email] = target_user
-                if emp_id:
-                    user_cache[emp_id.lower()] = target_user
+                global_user = db.query(User).filter(User.email.ilike(email)).first()
+                if global_user and global_user.organization_id == org_id:
+                    target_user = global_user
+                    user_cache[email] = global_user
+                else:
+                    email_to_assign = email
+                    if global_user:
+                        at_sign = "@"
+                        base_local, domain = email.split(at_sign, 1) if at_sign in email else (email, "workspace.internal")
+                        candidate = f"{base_local}+{org_id}@{domain}"
+                        suffix = 1
+                        while db.query(User).filter(User.email.ilike(candidate)).first():
+                            candidate = f"{base_local}+{org_id}.{suffix}@{domain}"
+                            suffix += 1
+                        email_to_assign = candidate
+
+                    random_pass = hash_password(secrets.token_urlsafe(24))
+                    target_user = User(
+                        organization_id=org_id,
+                        email=email_to_assign,
+                        display_name=full_name or email.split("@")[0].capitalize(),
+                        employee_id=emp_id or None,
+                        phone_number=phone or None,
+                        role="MEMBER",
+                        password_hash=random_pass,
+                    )
+                    db.add(target_user)
+                    db.flush()
+                    created_emp_count += 1
+                    user_cache[email] = target_user
+                    user_cache[email_to_assign] = target_user
+                    if emp_id:
+                        user_cache[emp_id.lower()] = target_user
 
                 # Lifecycle record
                 db.add(
