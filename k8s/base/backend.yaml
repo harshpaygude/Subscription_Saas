@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: unisora
+  labels:
+    app: backend
+    version: latest
+spec:
+  replicas: 2                    # 2 pods for high availability
+  selector:
+    matchLabels:
+      app: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0          # Zero-downtime deploy
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: REGISTRY/unisora-backend:TAG   # Replaced by Jenkins on deploy
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: unisora-secrets
+                  key: DATABASE_URL
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: unisora-secrets
+                  key: JWT_SECRET_KEY
+            - name: JWT_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: unisora-config
+                  key: JWT_ALGORITHM
+            - name: FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: unisora-config
+                  key: FRONTEND_URL
+            - name: ANTHROPIC_DEFAULT_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: unisora-config
+                  key: ANTHROPIC_DEFAULT_MODEL
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: unisora-secrets
+                  key: AZURE_CLIENT_ID
+                  optional: true
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: unisora-secrets
+                  key: AZURE_CLIENT_SECRET
+                  optional: true
+            - name: AZURE_TOKEN_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: unisora-secrets
+                  key: AZURE_TOKEN_ENCRYPTION_KEY
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: unisora
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP

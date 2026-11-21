@@ -43,3 +43,10 @@ CLAUDE.md
 
 # Docker
 postgres_data/
+
+# Kubernetes secrets (NEVER commit real secrets)
+k8s/base/secrets.yaml
+k8s/overlays/*/secrets.yaml
+
+# Jenkins build artifacts
+jenkins/.venv-ci/

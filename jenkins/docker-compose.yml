@@ -1,0 +1,31 @@
+# ============================================================
+# Run Jenkins in Docker on your server
+# Usage:
+#   docker compose -f jenkins/docker-compose.yml up -d
+#   Then visit http://YOUR_SERVER_IP:8080
+# ============================================================
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: unisora-jenkins
+    restart: unless-stopped
+    privileged: true                      # Needed for Docker-in-Docker
+    user: root
+    ports:
+      - "8080:8080"                        # Jenkins UI
+      - "50000:50000"                      # Jenkins agent port
+    volumes:
+      - jenkins_home:/var/jenkins_home     # Persistent Jenkins data
+      - /var/run/docker.sock:/var/run/docker.sock   # Docker access from Jenkins
+      - /usr/bin/docker:/usr/bin/docker    # Docker binary inside Jenkins
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false   # Skip wizard (optional)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  jenkins_home:
+    name: unisora-jenkins-home

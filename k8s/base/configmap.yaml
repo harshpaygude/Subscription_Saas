@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unisora-config
+  namespace: unisora
+data:
+  JWT_ALGORITHM: "HS256"
+  FRONTEND_URL: "https://unisora.in"
+  ANTHROPIC_DEFAULT_MODEL: "claude-sonnet-4-6"
+  AZURE_TENANT: "common"
+  AZURE_REDIRECT_URI: "https://unisora.in/api/integrations/azure/oauth/callback"
+  AZURE_SCOPES: "https://management.azure.com/user_impersonation"
