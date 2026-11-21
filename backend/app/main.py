@@ -24,6 +24,7 @@ from app.assets.routes import router as asset_router
 from app.license_assignments.routes import router as license_assignment_router
 from app.employees.routes import router as employee_router
 from app.employee_lifecycle.routes import router as employee_lifecycle_router
+from app.shadow_it import shadow_it_router
 from app.database.init_db import init_db
 
 
@@ -77,6 +78,7 @@ app.include_router(asset_router)
 app.include_router(license_assignment_router)
 app.include_router(employee_router)
 app.include_router(employee_lifecycle_router)
+app.include_router(shadow_it_router)
 
 
 @app.on_event("startup")

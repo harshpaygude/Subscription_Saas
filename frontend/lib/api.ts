@@ -977,3 +977,193 @@ export async function parseOnboardingExcel(file: File): Promise<ExcelImportResul
   return response.json();
 }
 
+// ==========================================
+// 🔔 Smart Alerts & Notifications API
+// ==========================================
+
+export interface NotificationPreference {
+  id: number;
+  organization_id: number;
+  user_id: number;
+  email_enabled: boolean;
+  whatsapp_enabled: boolean;
+  whatsapp_number: string | null;
+  notify_days_before: string;
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreference> {
+  return apiRequest<NotificationPreference>("/alerts/preferences");
+}
+
+export async function updateNotificationPreferences(payload: {
+  email_enabled: boolean;
+  whatsapp_enabled: boolean;
+  whatsapp_number?: string | null;
+  notify_days_before?: string;
+}): Promise<NotificationPreference> {
+  return apiRequest<NotificationPreference>("/alerts/preferences", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function sendTestNotification(payload: {
+  channel: "email" | "whatsapp" | "both";
+  custom_recipient?: string;
+}): Promise<{ status: string; results: Record<string, { delivered: boolean; message: string }> }> {
+  return apiRequest("/alerts/notify/test", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function dispatchDueAlerts(): Promise<{ dispatched_count: number; total_active_alerts: number }> {
+  return apiRequest("/alerts/dispatch-due", { method: "POST" });
+}
+
+// ==========================================
+// 🔍 Shadow IT Discovery API
+// ==========================================
+
+export interface ShadowItEntry {
+  id: number;
+  organization_id: number;
+  vendor_name: string;
+  category: string;
+  monthly_amount: number;
+  currency: string;
+  transaction_count: number;
+  first_seen: string | null;
+  last_seen: string | null;
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  status: "DISCOVERED" | "APPROVED" | "BLOCKED";
+  raw_descriptions: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShadowItStats {
+  total_monthly_spend: number;
+  currency: string;
+  vendor_count: number;
+  high_risk_count: number;
+  medium_risk_count: number;
+  low_risk_count: number;
+  discovered_count: number;
+  approved_count: number;
+  blocked_count: number;
+}
+
+export interface ShadowItUploadResult {
+  processed_transactions: number;
+  matched_vendors_count: number;
+  new_entries_created: number;
+  entries_updated: number;
+  total_monthly_spend_discovered: number;
+  currency: string;
+  entries: ShadowItEntry[];
+}
+
+export async function getShadowItStats(): Promise<ShadowItStats> {
+  return apiRequest<ShadowItStats>("/shadow-it/stats");
+}
+
+export async function listShadowItEntries(filters?: { status?: string; risk?: string }): Promise<ShadowItEntry[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.risk) params.set("risk", filters.risk);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  return apiRequest<ShadowItEntry[]>(`/shadow-it/entries${q}`);
+}
+
+export async function uploadBankStatementCsv(file: File): Promise<ShadowItUploadResult> {
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const url = `${API_URL}/shadow-it/upload`;
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    let msg = "CSV upload failed";
+    try {
+      const err = await res.json();
+      if (err.detail) msg = err.detail;
+    } catch {}
+    throw new ApiError(msg, res.status, "/shadow-it/upload");
+  }
+  return res.json();
+}
+
+export async function runDemoShadowItScan(): Promise<ShadowItUploadResult> {
+  return apiRequest<ShadowItUploadResult>("/shadow-it/demo-scan", { method: "POST" });
+}
+
+export async function approveShadowItEntry(id: number): Promise<ShadowItEntry> {
+  return apiRequest<ShadowItEntry>(`/shadow-it/entries/${id}/approve`, { method: "PUT" });
+}
+
+export async function blockShadowItEntry(id: number): Promise<ShadowItEntry> {
+  return apiRequest<ShadowItEntry>(`/shadow-it/entries/${id}/block`, { method: "PUT" });
+}
+
+export async function deleteShadowItEntry(id: number): Promise<void> {
+  await apiRequest(`/shadow-it/entries/${id}`, { method: "DELETE" });
+}
+
+// ==========================================
+// 👥 Employee Offboarding Automation API
+// ==========================================
+
+export interface OffboardingSummary {
+  active_offboardings: number;
+  completed_this_month: number;
+  orphan_accounts_count: number;
+  revoked_licenses_total: number;
+}
+
+export interface OrphanAccount {
+  lifecycle_id: number;
+  user_id: number;
+  name: string;
+  email: string;
+  completed_at: string;
+  days_since_offboarding: number;
+  active_subscriptions: Array<{ id: number; assignment_id: number; name: string; plan: string }>;
+  active_assets: Array<{ id: number; assignment_id: number; name: string; tag: string }>;
+  total_retained_items: number;
+}
+
+export async function getOffboardingSummary(): Promise<OffboardingSummary> {
+  return apiRequest<OffboardingSummary>("/employee-lifecycle/offboarding/summary");
+}
+
+export async function listOrphanAccounts(): Promise<OrphanAccount[]> {
+  return apiRequest<OrphanAccount[]>("/employee-lifecycle/offboarding/orphans");
+}
+
+export async function revokeAllOrphanAccess(targetUserId: number): Promise<{ status: string; message: string; revoked_subscriptions: number; returned_assets: number }> {
+  return apiRequest(`/employee-lifecycle/offboarding/orphans/${targetUserId}/revoke-all`, {
+    method: "POST",
+  });
+}
+
+export async function listActiveOffboardings(): Promise<LifecycleEmployeeRecord[]> {
+  return apiRequest<LifecycleEmployeeRecord[]>("/employee-lifecycle/offboarding/active");
+}
+
+export async function autoGenerateOffboardingChecklist(lifecycleId: number): Promise<LifecycleTaskRecord[]> {
+  return apiRequest<LifecycleTaskRecord[]>(`/employee-lifecycle/${lifecycleId}/auto-checklist`, {
+    method: "POST",
+  });
+}
+
+

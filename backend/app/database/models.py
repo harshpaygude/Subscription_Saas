@@ -503,3 +503,45 @@ class LifecycleTask(Base):
     completion_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class NotificationPreference(Base):
+    __tablename__ = "notification_preferences"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "user_id", name="uq_notif_pref_org_user"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    email_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    whatsapp_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    whatsapp_number: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    notify_days_before: Mapped[str] = mapped_column(String(50), nullable=False, default="30,7,1")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ShadowItEntry(Base):
+    __tablename__ = "shadow_it_entries"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "vendor_name", name="uq_shadow_it_org_vendor"),
+        Index("ix_shadow_it_org_status", "organization_id", "status"),
+        Index("ix_shadow_it_org_risk", "organization_id", "risk_level"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), nullable=False, index=True)
+    vendor_name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(60), nullable=False, default="Other")
+    monthly_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0.0)
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="INR")
+    transaction_count: Mapped[int] = mapped_column(nullable=False, default=1)
+    first_seen: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_seen: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False, default="MEDIUM")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="DISCOVERED")
+    raw_descriptions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+

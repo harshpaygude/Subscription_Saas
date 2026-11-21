@@ -127,3 +127,63 @@ def finish_lifecycle_task(task_id: int, payload: TaskCompletionRequest, db: Sess
     except ValueError as exc:
         db.rollback(); raise HTTPException(409, str(exc))
 
+
+# --- Offboarding Automation Extensions ---
+from app.employee_lifecycle.offboarding_automation import (
+    generate_smart_offboarding_checklist,
+    get_orphan_accounts,
+    bulk_revoke_orphan_access,
+    get_offboarding_summary,
+)
+
+
+@router.get("/employee-lifecycle/offboarding/summary")
+def offboarding_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return get_offboarding_summary(db, current_user)
+
+
+@router.get("/employee-lifecycle/offboarding/orphans")
+def list_orphan_accounts(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return get_orphan_accounts(db, current_user)
+
+
+@router.post("/employee-lifecycle/offboarding/orphans/{target_user_id}/revoke-all")
+def revoke_all_orphan_access(target_user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    require_admin(current_user)
+    try:
+        return bulk_revoke_orphan_access(db, current_user, target_user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.get("/employee-lifecycle/offboarding/active")
+def list_active_offboardings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    lifecycles = (
+        db.query(EmployeeLifecycle)
+        .filter(
+            EmployeeLifecycle.organization_id == current_user.organization_id,
+            EmployeeLifecycle.status == "OFFBOARDING",
+        )
+        .all()
+    )
+    results = []
+    for lc in lifecycles:
+        emp_resp = employee_response(db, lc)
+        results.append(emp_resp)
+    return results
+
+
+@router.post("/employee-lifecycle/{lifecycle_id}/auto-checklist", response_model=list[LifecycleTaskResponse])
+def auto_generate_checklist(lifecycle_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    require_admin(current_user)
+    lc = db.query(EmployeeLifecycle).filter(
+        EmployeeLifecycle.id == lifecycle_id,
+        EmployeeLifecycle.organization_id == current_user.organization_id,
+    ).first()
+    if not lc:
+        raise HTTPException(status_code=404, detail="Lifecycle record not found.")
+
+    tasks = generate_smart_offboarding_checklist(db, current_user, lc)
+    return [task_response(db, t) for t in tasks]
+
+
