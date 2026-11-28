@@ -99,7 +99,20 @@ export function ImportEmployeesModal({ isOpen, onClose, onSuccess }: Props) {
         {/* Header */}
         <div className="modal-header">
           <div className="modal-header-title-row">
-            <div className="modal-icon-badge" style={{ backgroundColor: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
+            <div
+              className="modal-icon-badge"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "var(--color-accent-subtle)",
+                color: "var(--color-accent-ink)",
+                border: "1px solid var(--color-accent-ring)",
+              }}
+            >
               <FileSpreadsheet size={20} />
             </div>
             <div>

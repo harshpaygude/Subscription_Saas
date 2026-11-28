@@ -161,6 +161,7 @@ export default function DepartmentsPage() {
       <section className="dashboard-content-card">
         <div className="card-header-bar">
           <div>
+            <span className="section-eyebrow">ORGANIZATION STRUCTURE</span>
             <h2 className="card-heading">Organization Departments</h2>
             <p className="card-subheading">
               {items.length} departments registered in your workspace.

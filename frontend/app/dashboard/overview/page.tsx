@@ -130,54 +130,63 @@ export default function OverviewPage() {
       </section>
 
       {/* KPI Metric Cards Grid */}
-      <section className="overview-metrics-grid" aria-label="Key Performance Indicators">
-        <MetricCard
-          label="Total Monthly Spend"
-          value={spendDisplay}
-          subtext={currencies.length === 1 ? "Active monthly run rate" : "From verified invoices & manual records"}
-          icon={<CircleDollarSign size={20} />}
-        />
-        <MetricCard
-          label="Active Subscriptions"
-          value={analytics?.active_subscriptions ?? (loading ? "…" : 0)}
-          subtext="Persisted SaaS vendor records"
-          icon={<WalletCards size={20} />}
-        />
-        <MetricCard
-          label="Connected Providers"
-          value={connected ?? (loading ? "…" : 0)}
-          subtext={`Out of ${providerRegistry.length} catalog integrations`}
-          icon={<Plug size={20} />}
-        />
-        <MetricCard
-          label="Upcoming Renewals"
-          value={analytics?.upcoming_renewals ?? (loading ? "…" : 0)}
-          subtext="Within the next 30 days"
-          icon={<CalendarClock size={20} />}
-        />
-        <MetricCard
-          label="Managed IT Assets"
-          value={analytics?.assets?.total ?? (loading ? "…" : 0)}
-          subtext={
-            analytics?.assets
-              ? `${analytics.assets.assigned} assigned · ${analytics.assets.available} available`
-              : "Company hardware inventory"
-          }
-          icon={<Laptop size={20} />}
-        />
-        <MetricCard
-          label="Active Departments"
-          value={analytics?.departments ?? (loading ? "…" : 0)}
-          subtext="Organization team divisions"
-          icon={<Users size={20} />}
-        />
+      <section aria-label="Key Performance Indicators">
+        <div className="section-title-row">
+          <div>
+            <span className="section-eyebrow">WORKSPACE SNAPSHOT</span>
+            <h2 className="section-title">Key Performance Indicators</h2>
+          </div>
+        </div>
+        <div className="overview-metrics-grid">
+          <MetricCard
+            label="Total Monthly Spend"
+            value={spendDisplay}
+            subtext={currencies.length === 1 ? "Active monthly run rate" : "From verified invoices & manual records"}
+            icon={<CircleDollarSign size={20} />}
+          />
+          <MetricCard
+            label="Active Subscriptions"
+            value={analytics?.active_subscriptions ?? (loading ? "…" : 0)}
+            subtext="Persisted SaaS vendor records"
+            icon={<WalletCards size={20} />}
+          />
+          <MetricCard
+            label="Connected Providers"
+            value={connected ?? (loading ? "…" : 0)}
+            subtext={`Out of ${providerRegistry.length} catalog integrations`}
+            icon={<Plug size={20} />}
+          />
+          <MetricCard
+            label="Upcoming Renewals"
+            value={analytics?.upcoming_renewals ?? (loading ? "…" : 0)}
+            subtext="Within the next 30 days"
+            icon={<CalendarClock size={20} />}
+          />
+          <MetricCard
+            label="Managed IT Assets"
+            value={analytics?.assets?.total ?? (loading ? "…" : 0)}
+            subtext={
+              analytics?.assets
+                ? `${analytics.assets.assigned} assigned · ${analytics.assets.available} available`
+                : "Company hardware inventory"
+            }
+            icon={<Laptop size={20} />}
+          />
+          <MetricCard
+            label="Active Departments"
+            value={analytics?.departments ?? (loading ? "…" : 0)}
+            subtext="Organization team divisions"
+            icon={<Users size={20} />}
+          />
+        </div>
       </section>
 
       {/* Quick Access Shortcuts Grid */}
       <section className="overview-shortcuts-section">
         <div className="section-title-row">
           <div>
-            <h3 className="section-title">Essential Workflows</h3>
+            <span className="section-eyebrow">QUICK NAVIGATION</span>
+            <h2 className="section-title">Essential Workflows</h2>
             <p className="section-subtitle">Direct shortcuts to configure and audit your workspace resources</p>
           </div>
         </div>

@@ -232,37 +232,46 @@ export default function EmployeeLifecyclePage() {
       )}
 
       {/* Metrics Row */}
-      <section className="overview-metrics-grid" aria-label="People KPIs">
-        <MetricCard
-          label="Active Employees"
-          value={data?.working.length ?? 0}
-          subtext="Currently employed and active"
-          icon={<UserRoundCheck size={20} />}
-        />
-        <MetricCard
-          label="New Joiners"
-          value={data?.new_joiners.length ?? 0}
-          subtext="Onboarding in progress"
-          icon={<UserPlus size={20} />}
-        />
-        <MetricCard
-          label="In Offboarding"
-          value={data?.offboarding.length ?? 0}
-          subtext="Asset & license clearance"
-          icon={<ClipboardCheck size={20} />}
-        />
-        <MetricCard
-          label="Pending Tasks"
-          value={data?.pending_tasks.length ?? 0}
-          subtext="Admin verification actions"
-          icon={<CheckCircle2 size={20} />}
-        />
+      <section aria-label="People KPIs">
+        <div className="section-title-row">
+          <div>
+            <span className="section-eyebrow">WORKFORCE OVERVIEW</span>
+            <h2 className="section-title">Lifecycle &amp; Clearance Metrics</h2>
+          </div>
+        </div>
+        <div className="overview-metrics-grid">
+          <MetricCard
+            label="Active Employees"
+            value={data?.working.length ?? 0}
+            subtext="Currently employed and active"
+            icon={<UserRoundCheck size={20} />}
+          />
+          <MetricCard
+            label="New Joiners"
+            value={data?.new_joiners.length ?? 0}
+            subtext="Onboarding in progress"
+            icon={<UserPlus size={20} />}
+          />
+          <MetricCard
+            label="In Offboarding"
+            value={data?.offboarding.length ?? 0}
+            subtext="Asset & license clearance"
+            icon={<ClipboardCheck size={20} />}
+          />
+          <MetricCard
+            label="Pending Tasks"
+            value={data?.pending_tasks.length ?? 0}
+            subtext="Admin verification actions"
+            icon={<CheckCircle2 size={20} />}
+          />
+        </div>
       </section>
 
       {/* Employee Directory Section */}
       <section className="dashboard-content-card mt-6">
         <div className="card-header-bar">
           <div>
+            <span className="section-eyebrow">TEAM ROSTER</span>
             <h2 className="card-heading">People Directory</h2>
             <p className="card-subheading">
               Manage accounts, assigned hardware, and access provisions.
@@ -346,13 +355,13 @@ export default function EmployeeLifecyclePage() {
           />
         ) : (
           <div className="data-table-container">
-            <table className="data-table">
+            <table className="data-table asset-table-spacious">
               <thead>
                 <tr>
                   <th>Employee</th>
                   <th>Department</th>
                   <th>Role / ID</th>
-                  <th>Resources</th>
+                  <th>Allocated Resources</th>
                   <th>Status</th>
                   <th>Joined</th>
                   <th className="align-right">Actions</th>
@@ -400,14 +409,14 @@ export default function EmployeeLifecyclePage() {
                         </div>
                       </td>
                       <td>
-                        <div className="flex-items-center gap-3 text-secondary text-xs">
-                          <span title={`${emp.subscription_assignments.length} Subscriptions`}>
-                            <WalletCards size={13} className="inline mr-1 text-muted" />
-                            {emp.subscription_assignments.length}
+                        <div className="resource-pill-row">
+                          <span className="resource-pill" title={`${emp.subscription_assignments.length} Subscriptions`}>
+                            <WalletCards size={12} />
+                            <span>{emp.subscription_assignments.length} Apps</span>
                           </span>
-                          <span title={`${emp.asset_assignments.length} IT Assets`}>
-                            <Laptop size={13} className="inline mr-1 text-muted" />
-                            {emp.asset_assignments.length}
+                          <span className="resource-pill" title={`${emp.asset_assignments.length} IT Assets`}>
+                            <Laptop size={12} />
+                            <span>{emp.asset_assignments.length} Assets</span>
                           </span>
                         </div>
                       </td>
@@ -461,6 +470,7 @@ export default function EmployeeLifecyclePage() {
       <section className="dashboard-content-card mt-6">
         <div className="card-header-bar">
           <div>
+            <span className="section-eyebrow">CLEARANCE QUEUE</span>
             <h2 className="card-heading">Required Lifecycle Tasks</h2>
             <p className="card-subheading">
               Open clearance actions and access verification tasks needing administrator attention.
@@ -472,7 +482,7 @@ export default function EmployeeLifecyclePage() {
           <div className="empty-subpanel">
             <CheckCircle2 size={24} className="text-success" />
             <div>
-              <strong className="block text-primary">All lifecycle tasks are clear</strong>
+              <h3 className="task-title" style={{ marginBottom: 2 }}>All lifecycle tasks are clear</h3>
               <span className="text-secondary text-xs">
                 No active onboarding or offboarding checklists waiting for verification.
               </span>

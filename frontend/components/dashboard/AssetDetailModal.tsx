@@ -140,7 +140,17 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
           <div className="modal-header-title-row">
             <div
               className="modal-icon-badge"
-              style={{ backgroundColor: "var(--color-accent-subtle)", color: "var(--color-accent)" }}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "var(--color-accent-subtle)",
+                color: "var(--color-accent-ink)",
+                border: "1px solid var(--color-accent-ring)",
+              }}
             >
               {getDeviceIcon()}
             </div>
@@ -149,9 +159,10 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
                 <span
                   style={{
                     fontWeight: 700,
-                    fontSize: 16,
-                    color: "var(--color-accent)",
-                    letterSpacing: "0.02em",
+                    fontSize: 14,
+                    color: "var(--color-accent-ink)",
+                    letterSpacing: "0.03em",
+                    fontFamily: "monospace",
                   }}
                 >
                   {asset.asset_tag}
@@ -160,7 +171,7 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
                   {activeAssignment ? "In Custody" : "Available in Storage"}
                 </StatusBadge>
               </div>
-              <h3 style={{ margin: "2px 0 0", fontSize: 18, color: "var(--text-primary)" }}>
+              <h3 style={{ margin: "3px 0 0", fontSize: 18, color: "var(--text-primary)" }}>
                 {asset.name}
               </h3>
             </div>
@@ -264,17 +275,17 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
           <div
             style={{
               background: activeAssignment ? "var(--bg-surface)" : "var(--bg-subtle)",
-              border: activeAssignment ? "1px solid var(--color-accent-subtle)" : "1px solid var(--border-color)",
+              border: activeAssignment ? "1px solid var(--color-accent-ring)" : "1px solid var(--border-color)",
               borderRadius: "var(--radius-lg)",
-              padding: 16,
+              padding: 18,
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <UserCheck size={16} style={{ color: activeAssignment ? "var(--color-accent)" : "var(--text-muted)" }} />
-                <strong style={{ fontSize: 13, color: "var(--text-primary)" }}>
+                <UserCheck size={16} style={{ color: activeAssignment ? "var(--color-accent-ink)" : "var(--text-muted)" }} />
+                <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
                   Current Custody Allocation
-                </strong>
+                </h4>
               </div>
               {activeAssignment && (
                 <button
@@ -371,11 +382,11 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
 
           {/* Historical Custodians (List of all users to whom it was provided) */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
               <Clock size={16} style={{ color: "var(--text-muted)" }} />
-              <strong style={{ fontSize: 13, color: "var(--text-primary)" }}>
-                Custody & Handover History ({assignments.length} total)
-              </strong>
+              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--text-primary)" }}>
+                Custody &amp; Handover History ({assignments.length} total)
+              </h4>
             </div>
 
             {loading ? (
@@ -394,7 +405,7 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
                 No previous custody assignments recorded for this hardware item.
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {assignments.map((asgn) => {
                   const emp = employees.find((p) => p.id === asgn.user_id);
                   const isCurrent = asgn.status === "ACTIVE";
@@ -406,25 +417,28 @@ export function AssetDetailModal({ isOpen, onClose, asset, onAssetUpdated }: Pro
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
-                        padding: "10px 14px",
-                        background: "var(--bg-surface)",
+                        gap: 12,
+                        padding: "13px 16px",
+                        background: "var(--bg-subtle)",
                         border: "1px solid var(--border-color)",
                         borderRadius: "var(--radius-md)",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div
                           style={{
-                            width: 32,
-                            height: 32,
+                            width: 36,
+                            height: 36,
                             borderRadius: "50%",
-                            background: isCurrent ? "var(--color-accent-subtle)" : "var(--bg-subtle)",
-                            color: isCurrent ? "var(--color-accent)" : "var(--text-secondary)",
+                            background: isCurrent ? "var(--color-accent)" : "var(--bg-surface)",
+                            color: isCurrent ? "var(--color-accent-text)" : "var(--text-secondary)",
+                            border: isCurrent ? "none" : "1px solid var(--border-color)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: 700,
+                            flexShrink: 0,
                           }}
                         >
                           {(asgn.user_name || asgn.user_email || emp?.display_name || "U")[0].toUpperCase()}

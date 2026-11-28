@@ -20,6 +20,8 @@ import {
   X,
   Search,
   ExternalLink,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -70,7 +72,24 @@ export function DashboardFrame({ title, description, children, onAddIntegration,
   const [mobileNav, setMobileNav] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarTooltip, setSidebarTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSidebarCollapsed(localStorage.getItem("unisora-sidebar-collapsed") === "true");
+  }, []);
+
+  useEffect(() => {
+    setSidebarTooltip(null);
+  }, [sidebarCollapsed]);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("unisora-sidebar-collapsed", String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -120,6 +139,12 @@ export function DashboardFrame({ title, description, children, onAddIntegration,
   const workspaceName = session.organization?.name || "Workspace";
   const userRole = session.user.role || "Member";
 
+  const showSidebarTooltip = (label: string, element: HTMLElement) => {
+    if (!sidebarCollapsed) return;
+    const bounds = element.getBoundingClientRect();
+    setSidebarTooltip({ label, top: bounds.top + bounds.height / 2, left: bounds.right + 10 });
+  };
+
   const isActive = (href: string) => {
     if (href === "/dashboard/overview") {
       return pathname === "/dashboard/overview" || pathname === "/dashboard";
@@ -156,6 +181,16 @@ export function DashboardFrame({ title, description, children, onAddIntegration,
           </Link>
           <button
             type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleSidebar}
+            aria-expanded={!sidebarCollapsed}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+          <button
+            type="button"
             className="mobile-close-btn"
             onClick={() => setMobileNav(false)}
             aria-label="Close menu"
@@ -176,6 +211,11 @@ export function DashboardFrame({ title, description, children, onAddIntegration,
                   href={href}
                   className={`nav-link ${active ? "is-active" : ""}`}
                   onClick={() => setMobileNav(false)}
+                  aria-label={label}
+                  onMouseEnter={(event) => showSidebarTooltip(label, event.currentTarget)}
+                  onMouseLeave={() => setSidebarTooltip(null)}
+                  onFocus={(event) => showSidebarTooltip(label, event.currentTarget)}
+                  onBlur={() => setSidebarTooltip(null)}
                 >
                   <Icon size={18} className="nav-icon" />
                   <span className="nav-label">{label}</span>
@@ -196,6 +236,11 @@ export function DashboardFrame({ title, description, children, onAddIntegration,
                   href={href}
                   className={`nav-link ${active ? "is-active" : ""}`}
                   onClick={() => setMobileNav(false)}
+                  aria-label={label}
+                  onMouseEnter={(event) => showSidebarTooltip(label, event.currentTarget)}
+                  onMouseLeave={() => setSidebarTooltip(null)}
+                  onFocus={(event) => showSidebarTooltip(label, event.currentTarget)}
+                  onBlur={() => setSidebarTooltip(null)}
                 >
                   <Icon size={18} className="nav-icon" />
                   <span className="nav-label">{label}</span>
@@ -267,6 +312,16 @@ export function DashboardFrame({ title, description, children, onAddIntegration,
           </div>
         </div>
       </aside>
+
+      {sidebarTooltip && (
+        <div
+          className="sidebar-tooltip"
+          role="tooltip"
+          style={{ top: sidebarTooltip.top, left: sidebarTooltip.left }}
+        >
+          {sidebarTooltip.label}
+        </div>
+      )}
 
       {/* Main Container */}
       <div className="app-main-layout">

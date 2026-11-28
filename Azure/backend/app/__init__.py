@@ -1,2 +1,0 @@
-"""Unified Cloud Platform backend."""
-

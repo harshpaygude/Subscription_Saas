@@ -2,16 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import {
-  Check,
   CheckCircle2,
-  Lock,
   LogOut,
   Moon,
-  Palette,
   Shield,
   Sun,
   User as UserIcon,
-  Sparkles,
+  Monitor,
 } from "lucide-react";
 import {
   changePassword,
@@ -20,9 +17,7 @@ import {
   type Organization,
   type User,
 } from "@/lib/api";
-import { ACCENT_PRESETS, AccentPreset } from "@/lib/theme";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
 interface Props {
   user: User;
@@ -37,7 +32,7 @@ export function SettingsPanel({
   onUserChange,
   onNotice,
 }: Props) {
-  const { theme, setTheme, accent, setAccent, isDark } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const [activeTab, setActiveTab] = useState<"appearance" | "account" | "security">("appearance");
   const [displayName, setDisplayName] = useState(user.display_name || user.email.split("@")[0]);
@@ -46,18 +41,6 @@ export function SettingsPanel({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [customHex, setCustomHex] = useState(accent);
-
-  function handleSelectAccent(preset: AccentPreset) {
-    setAccent(preset.hex);
-    setCustomHex(preset.hex);
-    onNotice(`Accent set to ${preset.name}.`);
-  }
-
-  function handleCustomColorChange(color: string) {
-    setCustomHex(color);
-    setAccent(color);
-  }
 
   async function saveProfile(event: FormEvent) {
     event.preventDefault();
@@ -108,17 +91,21 @@ export function SettingsPanel({
   return (
     <div className="settings-layout-wrapper">
       {/* Settings Navigation Tabs */}
-      <div className="settings-tabs-bar">
+      <div className="settings-tabs-bar" role="tablist" aria-label="Settings sections">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "appearance"}
           className={`settings-tab-btn ${activeTab === "appearance" ? "is-active" : ""}`}
           onClick={() => setActiveTab("appearance")}
         >
-          <Palette size={16} />
-          <span>Appearance & Theme</span>
+          <Monitor size={16} />
+          <span>Display Mode</span>
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "account"}
           className={`settings-tab-btn ${activeTab === "account" ? "is-active" : ""}`}
           onClick={() => setActiveTab("account")}
         >
@@ -127,24 +114,26 @@ export function SettingsPanel({
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "security"}
           className={`settings-tab-btn ${activeTab === "security" ? "is-active" : ""}`}
           onClick={() => setActiveTab("security")}
         >
           <Shield size={16} />
-          <span>Security & Passwords</span>
+          <span>Security &amp; Passwords</span>
         </button>
       </div>
 
-      {/* Tab 1: Appearance & Theme */}
+      {/* Tab 1: Unified Dual-Mode Display */}
       {activeTab === "appearance" && (
         <div className="settings-tab-content space-y-6">
-          {/* Mode Switch Card */}
           <section className="dashboard-content-card">
             <div className="card-header-bar">
               <div>
-                <h3 className="card-heading">Interface Mode</h3>
+                <span className="section-eyebrow">UNISORA LIQUID GLASS SYSTEM</span>
+                <h2 className="card-heading">Display Mode</h2>
                 <p className="card-subheading">
-                  Choose between high-contrast crisp light mode or eye-friendly dark mode.
+                  Switch between Light Surface and Ink Black modes with the unified Electric Lime &amp; Liquid Glass interface.
                 </p>
               </div>
             </div>
@@ -170,7 +159,7 @@ export function SettingsPanel({
                   <Sun size={17} className="mode-icon text-warning" />
                   <div>
                     <strong>Light Mode</strong>
-                    <small>Crisp white surfaces with balanced contrast</small>
+                    <small>Light Surface (#F1F3F9) · Brushed Silver · Electric Lime</small>
                   </div>
                   {theme === "light" && <CheckCircle2 size={18} className="mode-check text-accent" />}
                 </div>
@@ -193,99 +182,14 @@ export function SettingsPanel({
                   </div>
                 </div>
                 <div className="mode-card-info">
-                  <Moon size={17} className="mode-icon text-info" />
+                  <Moon size={17} className="mode-icon text-accent" />
                   <div>
                     <strong>Dark Mode</strong>
-                    <small>Deep slate tones optimized for focused reading</small>
+                    <small>Ink Black (#030407) · Silver Glass · Electric Lime</small>
                   </div>
                   {theme === "dark" && <CheckCircle2 size={18} className="mode-check text-accent" />}
                 </div>
               </button>
-            </div>
-          </section>
-
-          {/* Global Accent Presets */}
-          <section className="dashboard-content-card">
-            <div className="card-header-bar">
-              <div>
-                <h3 className="card-heading">Primary Accent Color</h3>
-                <p className="card-subheading">
-                  Select a unified brand accent for buttons, active navigation, badges, focus rings, and metrics.
-                </p>
-              </div>
-            </div>
-
-            <div className="accent-presets-grid">
-              {ACCENT_PRESETS.map((preset) => {
-                const isSelected = accent.toUpperCase() === preset.hex.toUpperCase();
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className={`accent-preset-card ${isSelected ? "is-selected" : ""}`}
-                    onClick={() => handleSelectAccent(preset)}
-                  >
-                    <div
-                      className="preset-swatch-circle"
-                      style={{ backgroundColor: preset.hex }}
-                    >
-                      {isSelected && <Check size={16} className="preset-check" />}
-                    </div>
-                    <div className="preset-details">
-                      <strong>{preset.name}</strong>
-                      <span className="preset-hex">{preset.hex}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Custom Hex Selector */}
-            <div className="custom-accent-row">
-              <label htmlFor="custom-color-input" className="form-label inline-flex items-center gap-2">
-                <span>Custom Accent Hex:</span>
-              </label>
-              <div className="custom-color-picker-wrap">
-                <input
-                  id="custom-color-input"
-                  type="color"
-                  value={customHex}
-                  onChange={(e) => handleCustomColorChange(e.target.value)}
-                  className="color-wheel-input"
-                  title="Choose custom color"
-                />
-                <input
-                  type="text"
-                  value={customHex}
-                  onChange={(e) => handleCustomColorChange(e.target.value)}
-                  className="form-input custom-hex-text"
-                  maxLength={7}
-                  placeholder="#10B981"
-                />
-              </div>
-            </div>
-
-            {/* Live Component Preview */}
-            <div className="accent-preview-box">
-              <div className="preview-box-header">
-                <Sparkles size={15} className="text-accent" />
-                <span>Live Component Accent Preview</span>
-              </div>
-              <div className="preview-components-row">
-                <button type="button" className="btn btn-primary btn-sm">
-                  Primary Button
-                </button>
-                <button type="button" className="btn btn-secondary btn-sm">
-                  Secondary Button
-                </button>
-                <div className="nav-preview-item">
-                  <span className="nav-preview-pill" />
-                  <span className="nav-preview-text">Active Nav Item</span>
-                </div>
-                <StatusBadge variant="accent" size="md">
-                  Accent Status Badge
-                </StatusBadge>
-              </div>
             </div>
           </section>
         </div>
@@ -296,7 +200,8 @@ export function SettingsPanel({
         <section className="dashboard-content-card">
           <div className="card-header-bar">
             <div>
-              <h3 className="card-heading">Account Profile</h3>
+              <span className="section-eyebrow">IDENTITY &amp; WORKSPACE</span>
+              <h2 className="card-heading">Account Profile</h2>
               <p className="card-subheading">
                 Update how your name appears to colleagues and administrative records.
               </p>
@@ -365,7 +270,8 @@ export function SettingsPanel({
         <section className="dashboard-content-card">
           <div className="card-header-bar">
             <div>
-              <h3 className="card-heading">Change Password</h3>
+              <span className="section-eyebrow">AUTHENTICATION</span>
+              <h2 className="card-heading">Change Password</h2>
               <p className="card-subheading">
                 Passwords are cryptographically hashed and salted using bcrypt.
               </p>

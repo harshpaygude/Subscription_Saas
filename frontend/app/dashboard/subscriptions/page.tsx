@@ -70,22 +70,22 @@ export default function SubscriptionsPage() {
     }
     if (diffDays === 0) {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
-          <Clock size={11} /> ⚠️ Renews today!
+        <span className="renewal-alert-pill is-error">
+          <Clock size={11} /> Renews today
         </span>
       );
     }
     if (diffDays === 1) {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-          <Clock size={11} /> ⚠️ 1-day alert (Tomorrow)
+        <span className="renewal-alert-pill is-warning">
+          <Clock size={11} /> 1-day alert (Tomorrow)
         </span>
       );
     }
     if (diffDays <= 30) {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-          <Clock size={11} /> ⏱️ 1-mo alert ({diffDays}d left)
+        <span className="renewal-alert-pill is-info">
+          <Clock size={11} /> 1-mo alert ({diffDays}d left)
         </span>
       );
     }
@@ -95,14 +95,8 @@ export default function SubscriptionsPage() {
   function getRenewalTypeBadge(type: string | null | undefined) {
     const isAuto = !type || type.toUpperCase().includes("AUTO");
     return (
-      <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
-          isAuto
-            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
-            : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-        }`}
-      >
-        {isAuto ? "⚡ Auto-Pay" : "📝 Manual"}
+      <span className={`renewal-type-pill ${isAuto ? "is-auto" : "is-manual"}`}>
+        {isAuto ? "Auto-Pay" : "Manual"}
       </span>
     );
   }
@@ -293,6 +287,7 @@ export default function SubscriptionsPage() {
       <section className="dashboard-content-card">
         <div className="card-header-bar flex flex-wrap items-center justify-between gap-3">
           <div>
+            <span className="section-eyebrow">CONTRACT LEDGER</span>
             <h2 className="card-heading">Subscription Portfolio</h2>
             <p className="card-subheading">
               {items.length} recurring SaaS services tracked · Includes 1-month &amp; 1-day renewal alerts.
@@ -375,7 +370,7 @@ export default function SubscriptionsPage() {
           />
         ) : (
           <div className="data-table-container">
-            <table className="data-table">
+            <table className="data-table asset-table-spacious">
               <thead>
                 <tr>
                   <th>Service &amp; Provider</th>

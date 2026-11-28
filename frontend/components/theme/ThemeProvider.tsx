@@ -3,12 +3,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   applyTheme,
-  DEFAULT_ACCENT,
-  getStoredAccent,
+  UNISORA_ACCENT,
   getStoredTheme,
   ThemeMode,
   THEME_KEY,
-  ACCENT_KEY,
 } from "@/lib/theme";
 
 interface ThemeContextType {
@@ -21,30 +19,27 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "light",
-  accent: DEFAULT_ACCENT,
-  isDark: false,
+  theme: "dark",
+  accent: UNISORA_ACCENT,
+  isDark: true,
   setTheme: () => {},
   toggleTheme: () => {},
   setAccent: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("light");
-  const [accent, setAccentState] = useState<string>(DEFAULT_ACCENT);
+  const [theme, setThemeState] = useState<ThemeMode>("dark");
 
   useEffect(() => {
     const initialTheme = getStoredTheme();
-    const initialAccent = getStoredAccent();
     setThemeState(initialTheme);
-    setAccentState(initialAccent);
-    applyTheme(initialTheme, initialAccent);
+    applyTheme(initialTheme);
   }, []);
 
   const setTheme = (next: ThemeMode) => {
     setThemeState(next);
     localStorage.setItem(THEME_KEY, next);
-    applyTheme(next, accent);
+    applyTheme(next);
   };
 
   const toggleTheme = () => {
@@ -52,18 +47,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(next);
   };
 
-  const setAccent = (nextHex: string) => {
-    setAccentState(nextHex);
-    localStorage.setItem(ACCENT_KEY, nextHex);
-    localStorage.setItem("UniSora-button", nextHex);
-    applyTheme(theme, nextHex);
+  const setAccent = () => {
+    applyTheme(theme);
   };
 
   return (
     <ThemeContext.Provider
       value={{
         theme,
-        accent,
+        accent: UNISORA_ACCENT,
         isDark: theme === "dark",
         setTheme,
         toggleTheme,

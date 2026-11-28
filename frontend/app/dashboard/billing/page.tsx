@@ -68,31 +68,40 @@ export default function BillingPage() {
       description="Centralized invoice synchronization, API usage credit tracking, and cloud provider spend governance."
     >
       {/* Metric Cards Row */}
-      <section className="overview-metrics-grid" aria-label="Billing Summary">
-        <MetricCard
-          label="Catalog Providers"
-          value={providerRegistry.length}
-          subtext="Supported cloud & SaaS vendors"
-          icon={<CreditCard size={20} />}
-        />
-        <MetricCard
-          label="Live Connected Billing"
-          value={connectedCount}
-          subtext="Telemetry synchronized"
-          icon={<Plug size={20} />}
-        />
-        <MetricCard
-          label="Contract Records"
-          value="Manage"
-          subtext="Seats, prices, and renewal terms"
-          icon={<WalletCards size={20} />}
-        />
+      <section aria-label="Billing Summary">
+        <div className="section-title-row">
+          <div>
+            <span className="section-eyebrow">BILLING OVERVIEW</span>
+            <h2 className="section-title">Synchronized Billing Status</h2>
+          </div>
+        </div>
+        <div className="overview-metrics-grid">
+          <MetricCard
+            label="Catalog Providers"
+            value={providerRegistry.length}
+            subtext="Supported cloud & SaaS vendors"
+            icon={<CreditCard size={20} />}
+          />
+          <MetricCard
+            label="Live Connected Billing"
+            value={connectedCount}
+            subtext="Telemetry synchronized"
+            icon={<Plug size={20} />}
+          />
+          <MetricCard
+            label="Contract Records"
+            value="Manage"
+            subtext="Seats, prices, and renewal terms"
+            icon={<WalletCards size={20} />}
+          />
+        </div>
       </section>
 
       {/* Provider Billing Grid Section */}
       <section className="dashboard-content-card mt-6">
         <div className="card-header-bar">
           <div>
+            <span className="section-eyebrow">PORTALS</span>
             <h2 className="card-heading">Service Billing Portals</h2>
             <p className="card-subheading">
               Select a connected service to inspect invoices or configure live cloud billing data.

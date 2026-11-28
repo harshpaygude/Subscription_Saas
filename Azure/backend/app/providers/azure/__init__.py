@@ -1,1 +1,0 @@
-"""Microsoft Azure provider integration."""

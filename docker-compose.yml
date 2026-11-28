@@ -1,9 +1,19 @@
-name: unisora-production
+x-service-common: &service-common
+  restart: unless-stopped
+  networks:
+    - unisora_internal
+
+x-service-env: &service-env
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?Set INTERNAL_SERVICE_SECRET in .env}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  SERVICE_VERSION: ${SERVICE_VERSION:-1.0.0}
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: unisora-production-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -13,59 +23,213 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    networks:
+      - unisora_internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-subscription_saas}"]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 5s
+      retries: 10
 
-  backend:
+  identity-service:
+    <<: *service-common
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: unisora-production-backend
-    restart: unless-stopped
+      context: .
+      dockerfile: services/identity-service/Dockerfile
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/identity_db
+      ASSET_SERVICE_URL: http://asset-service:8003
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:8002
+      LIFECYCLE_SERVICE_URL: http://lifecycle-service:8004
+      INTEGRATION_SERVICE_URL: http://integration-service:8005
+      GOVERNANCE_SERVICE_URL: http://governance-service:8006
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  subscription-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/subscription-service/Dockerfile
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-subscription_saas}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env before starting the production stack}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/subscription_db
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      ASSET_SERVICE_URL: http://asset-service:8003
+      INTEGRATION_SERVICE_URL: http://integration-service:8005
+      GOVERNANCE_SERVICE_URL: http://governance-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  asset-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/asset-service/Dockerfile
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/asset_db
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      GOVERNANCE_SERVICE_URL: http://governance-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  lifecycle-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/lifecycle-service/Dockerfile
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/lifecycle_db
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:8002
+      ASSET_SERVICE_URL: http://asset-service:8003
+      GOVERNANCE_SERVICE_URL: http://governance-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  integration-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/integration-service/Dockerfile
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/integration_db
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-common}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
       AZURE_TENANT: ${AZURE_TENANT:-common}
-      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-http://localhost:3000/api/integrations/azure/oauth/callback}
+      AZURE_REDIRECT_URI: ${AZURE_REDIRECT_URI:-http://127.0.0.1:8000/integrations/azure/oauth/callback}
       AZURE_SCOPES: ${AZURE_SCOPES:-https://management.azure.com/user_impersonation}
       AZURE_TOKEN_ENCRYPTION_KEY: ${AZURE_TOKEN_ENCRYPTION_KEY:-}
       ANTHROPIC_DEFAULT_MODEL: ${ANTHROPIC_DEFAULT_MODEL:-claude-sonnet-4-6}
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      GOVERNANCE_SERVICE_URL: http://governance-service:8006
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health')"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: 10
+      start_period: 10s
+
+  governance-service:
+    <<: *service-common
+    build:
+      context: .
+      dockerfile: services/governance-service/Dockerfile
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/governance_db
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:8002
+      ASSET_SERVICE_URL: http://asset-service:8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  gateway:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    environment:
+      <<: *service-env
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:3000}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      IDENTITY_SERVICE_URL: http://identity-service:8001
+      SUBSCRIPTION_SERVICE_URL: http://subscription-service:8002
+      ASSET_SERVICE_URL: http://asset-service:8003
+      LIFECYCLE_SERVICE_URL: http://lifecycle-service:8004
+      INTEGRATION_SERVICE_URL: http://integration-service:8005
+      GOVERNANCE_SERVICE_URL: http://governance-service:8006
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - unisora_internal
+      - default
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      subscription-service:
+        condition: service_healthy
+      asset-service:
+        condition: service_healthy
+      lifecycle-service:
+        condition: service_healthy
+      integration-service:
+        condition: service_healthy
+      governance-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
       start_period: 10s
 
   frontend:
+    restart: unless-stopped
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        API_PROXY_TARGET: http://backend:8000
-    container_name: unisora-production-frontend
-    restart: unless-stopped
-    depends_on:
-      backend:
-        condition: service_healthy
+        API_PROXY_TARGET: http://gateway:8000
     environment:
-      API_PROXY_TARGET: http://backend:8000
+      API_PROXY_TARGET: http://gateway:8000
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+networks:
+  unisora_internal:
+    driver: bridge
 
 volumes:
   postgres_data:
     name: unisora-production-postgres-data
+    external: true

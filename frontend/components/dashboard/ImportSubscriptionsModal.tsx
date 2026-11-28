@@ -144,14 +144,14 @@ export function ImportSubscriptionsModal({ isOpen, onClose, onSuccess }: Props) 
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body space-y-5">
+        <div className="modal-body space-y-4">
           {/* Quick Info Banner */}
-          <div className="p-3 bg-muted/40 rounded-lg border border-border text-xs space-y-2">
-            <div className="flex items-center gap-2 font-medium text-primary">
-              <Zap size={14} className="text-amber-500" />
+          <div className="import-info-box">
+            <div className="import-info-title">
+              <Zap size={14} className="text-warning" />
               <span>Smart SaaS Renewal Alerting (1-Month &amp; 1-Day Prior)</span>
             </div>
-            <p className="text-muted leading-relaxed">
+            <p className="text-secondary leading-relaxed" style={{ margin: 0 }}>
               UniSora scans renewal milestones automatically:
               <br />
               • <strong>1-Month (30 Days) Prior:</strong> Sends an advance notice alerting the user whether the contract will auto-debit or requires manual purchase order processing.
@@ -161,13 +161,13 @@ export function ImportSubscriptionsModal({ isOpen, onClose, onSuccess }: Props) 
           </div>
 
           {/* Quick Action: Seed Demo Dataset */}
-          <div className="flex items-center justify-between p-3 bg-accent/5 rounded-lg border border-accent/20">
-            <div>
-              <h4 className="font-medium text-sm text-primary flex items-center gap-1.5">
+          <div className="import-demo-banner">
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <h4 className="task-title" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <Sparkles size={14} className="text-accent" />
                 <span>Need dummy data to test right away?</span>
               </h4>
-              <p className="text-xs text-muted">
+              <p className="text-xs text-secondary" style={{ margin: 0 }}>
                 Pre-loads complete SaaS test cases (renews tomorrow, in 30 days, autopay &amp; manual) and mock connections.
               </p>
             </div>
@@ -192,8 +192,8 @@ export function ImportSubscriptionsModal({ isOpen, onClose, onSuccess }: Props) 
           </div>
 
           {/* Download Sample Templates Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-card rounded-lg border border-border">
-            <div className="flex items-center gap-2 text-xs">
+          <div className="import-template-bar">
+            <div className="flex items-center gap-2 text-xs text-secondary">
               <FileSpreadsheet size={16} className="text-success" />
               <span>Download sample spreadsheet with preconfigured test cases:</span>
             </div>
@@ -219,13 +219,7 @@ export function ImportSubscriptionsModal({ isOpen, onClose, onSuccess }: Props) 
 
           {/* Drag & Drop Upload Zone */}
           <div
-            className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
-              isDragOver
-                ? "border-accent bg-accent/5"
-                : file
-                ? "border-success/50 bg-success/5"
-                : "border-border hover:border-muted-foreground"
-            }`}
+            className={`import-dropzone-area ${isDragOver ? "is-dragover" : ""} ${file ? "has-file" : ""}`}
             onDragOver={(e) => {
               e.preventDefault();
               setIsDragOver(true);
@@ -244,7 +238,7 @@ export function ImportSubscriptionsModal({ isOpen, onClose, onSuccess }: Props) 
               ref={fileInputRef}
               type="file"
               accept=".csv,.xlsx,.xls"
-              className="hidden"
+              style={{ display: "none" }}
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
                   handleFileChange(e.target.files[0]);
@@ -283,21 +277,21 @@ export function ImportSubscriptionsModal({ isOpen, onClose, onSuccess }: Props) 
 
           {/* Import Result Feedback */}
           {result && (
-            <div className="p-3 bg-success/10 border border-success/30 rounded-lg text-xs space-y-2">
+            <div className="import-result-box space-y-2">
               <div className="flex items-center gap-2 font-medium text-success">
                 <CheckCircle2 size={15} />
                 <span>
                   Successfully processed {result.total_processed} SaaS subscription records!
                 </span>
               </div>
-              <p className="text-muted">
+              <p className="text-secondary" style={{ margin: 0 }}>
                 Created: <strong>{result.imported}</strong> new · Updated:{" "}
                 <strong>{result.updated}</strong> existing
               </p>
               {result.errors && result.errors.length > 0 && (
                 <div className="text-danger mt-1">
                   <strong>Notes / Warnings:</strong>
-                  <ul className="list-disc pl-4 mt-1 space-y-0.5">
+                  <ul className="list-disc pl-4 mt-1">
                     {result.errors.map((err, i) => (
                       <li key={i}>{err}</li>
                     ))}

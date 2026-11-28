@@ -23,7 +23,7 @@ export default function SettingsPage() {
   return (
     <DashboardFrame
       title="Settings"
-      description="Configure workspace preferences, interface appearance, accent branding, and account security."
+      description="Manage display mode, account profile, and workspace security."
     >
       {notice && (
         <div className="alert-notice alert-info mb-4" role="status">

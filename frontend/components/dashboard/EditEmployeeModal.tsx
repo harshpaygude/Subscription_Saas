@@ -164,7 +164,17 @@ export function EditEmployeeModal({ isOpen, onClose, onSuccess, employee }: Prop
           <div className="modal-header-title-row">
             <div
               className="modal-icon-badge"
-              style={{ backgroundColor: "var(--color-accent-subtle)", color: "var(--color-accent)" }}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "var(--color-accent-subtle)",
+                color: "var(--color-accent-ink)",
+                border: "1px solid var(--color-accent-ring)",
+              }}
             >
               <UserCheck size={20} />
             </div>
@@ -305,40 +315,14 @@ export function EditEmployeeModal({ isOpen, onClose, onSuccess, employee }: Prop
                   No subscriptions found in workspace. Add them on the Subscriptions page first.
                 </div>
               ) : (
-                <div
-                  style={{
-                    maxHeight: 140,
-                    overflowY: "auto",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "var(--radius-md)",
-                    padding: 8,
-                    background: "var(--bg-surface)",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: 6,
-                  }}
-                >
+                <div className="edit-resource-grid">
                   {subscriptions.map((sub) => {
                     const isAlreadyActive = activeSubIds.has(sub.id);
                     const isNewlySelected = selectedSubscriptionIds.includes(sub.id);
                     return (
                       <label
                         key={sub.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: "6px 10px",
-                          borderRadius: "var(--radius-sm)",
-                          background: isAlreadyActive
-                            ? "var(--bg-subtle)"
-                            : isNewlySelected
-                            ? "var(--color-accent-subtle)"
-                            : "transparent",
-                          cursor: isAlreadyActive ? "default" : "pointer",
-                          fontSize: 12,
-                          border: isNewlySelected ? "1px solid var(--color-accent)" : "1px solid transparent",
-                        }}
+                        className={`edit-resource-item ${isNewlySelected ? "is-selected" : ""} ${isAlreadyActive ? "is-active-custody" : ""}`}
                       >
                         <input
                           type="checkbox"
@@ -346,14 +330,18 @@ export function EditEmployeeModal({ isOpen, onClose, onSuccess, employee }: Prop
                           checked={isAlreadyActive || isNewlySelected}
                           onChange={() => toggleSubscription(sub.id)}
                         />
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <strong>{sub.provider || sub.name}</strong>
-                          <span style={{ color: "var(--text-secondary)", fontSize: 11, marginLeft: 4 }}>
-                            ({sub.plan})
-                          </span>
-                          {isAlreadyActive && (
-                            <span style={{ color: "var(--color-success)", fontSize: 10, marginLeft: 6 }}>
-                              [Active]
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                            <strong style={{ fontSize: 12, color: "var(--text-primary)" }}>{sub.provider || sub.name}</strong>
+                            {isAlreadyActive && (
+                              <span className="badge-tag" style={{ color: "var(--color-success-text)", background: "var(--color-success-bg)" }}>
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          {sub.plan && (
+                            <span style={{ color: "var(--text-secondary)", fontSize: 11, display: "block" }}>
+                              {sub.plan}
                             </span>
                           )}
                         </div>
@@ -390,40 +378,14 @@ export function EditEmployeeModal({ isOpen, onClose, onSuccess, employee }: Prop
                   No available IT assets in storage. Register or return assets in the IT Assets page first.
                 </div>
               ) : (
-                <div
-                  style={{
-                    maxHeight: 160,
-                    overflowY: "auto",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "var(--radius-md)",
-                    padding: 8,
-                    background: "var(--bg-surface)",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: 6,
-                  }}
-                >
+                <div className="edit-resource-grid">
                   {assignableAssets.map((asset) => {
                     const isAlreadyActive = activeAssetIds.has(asset.id);
                     const isNewlySelected = selectedAssetIds.includes(asset.id);
                     return (
                       <label
                         key={asset.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: "6px 10px",
-                          borderRadius: "var(--radius-sm)",
-                          background: isAlreadyActive
-                            ? "var(--bg-subtle)"
-                            : isNewlySelected
-                            ? "var(--color-accent-subtle)"
-                            : "transparent",
-                          cursor: isAlreadyActive ? "default" : "pointer",
-                          fontSize: 12,
-                          border: isNewlySelected ? "1px solid var(--color-accent)" : "1px solid transparent",
-                        }}
+                        className={`edit-resource-item ${isNewlySelected ? "is-selected" : ""} ${isAlreadyActive ? "is-active-custody" : ""}`}
                       >
                         <input
                           type="checkbox"
@@ -431,19 +393,23 @@ export function EditEmployeeModal({ isOpen, onClose, onSuccess, employee }: Prop
                           checked={isAlreadyActive || isNewlySelected}
                           onChange={() => toggleAsset(asset.id)}
                         />
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <span style={{ fontWeight: 600, color: "var(--color-accent)", marginRight: 4 }}>
-                            [{asset.asset_tag}]
-                          </span>
-                          <span>{asset.name}</span>
-                          <span style={{ color: "var(--text-secondary)", fontSize: 11, marginLeft: 4 }}>
-                            · {asset.asset_type}
-                          </span>
-                          {isAlreadyActive && (
-                            <span style={{ color: "var(--color-success)", fontSize: 10, marginLeft: 6 }}>
-                              [In Custody]
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                            <span style={{ fontWeight: 700, fontSize: 11, fontFamily: "monospace", color: "var(--color-accent-ink)" }}>
+                              {asset.asset_tag}
                             </span>
-                          )}
+                            {isAlreadyActive && (
+                              <span className="badge-tag" style={{ color: "var(--color-success-text)", background: "var(--color-success-bg)" }}>
+                                In Custody
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginTop: 2 }}>
+                            {asset.name}
+                          </div>
+                          <div style={{ color: "var(--text-secondary)", fontSize: 11 }}>
+                            {asset.asset_type}
+                          </div>
                         </div>
                       </label>
                     );

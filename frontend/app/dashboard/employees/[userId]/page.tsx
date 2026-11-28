@@ -170,26 +170,29 @@ export default function EmployeeLifecycleDetailPage() {
             </div>
 
             {/* Profile Meta Grid */}
-            <div className="detail-attributes-grid">
-              <div className="attr-item">
-                <span className="attr-label">Employee ID</span>
-                <span className="attr-value">{employee.employee_id || "—"}</span>
-              </div>
-              <div className="attr-item">
-                <span className="attr-label">Organization Role</span>
-                <span className="attr-value">{employee.role}</span>
-              </div>
-              <div className="attr-item">
-                <span className="attr-label">Joined On</span>
-                <span className="attr-value">{employee.joined_at}</span>
-              </div>
-              <div className="attr-item">
-                <span className="attr-label">Last Working Day</span>
-                <span className="attr-value">{employee.last_working_date || "Active Staff"}</span>
-              </div>
-              <div className="attr-item">
-                <span className="attr-label">Open Clearance Tasks</span>
-                <span className="attr-value">{employee.open_task_count}</span>
+            <div style={{ paddingTop: 18, borderTop: "1px solid var(--border-color)" }}>
+              <span className="section-eyebrow" style={{ marginBottom: 12 }}>EMPLOYMENT &amp; CLEARANCE SUMMARY</span>
+              <div className="detail-attributes-grid" style={{ paddingTop: 0, borderTop: "none" }}>
+                <div className="attr-item">
+                  <span className="attr-label">Employee ID</span>
+                  <span className="attr-value">{employee.employee_id || "—"}</span>
+                </div>
+                <div className="attr-item">
+                  <span className="attr-label">Organization Role</span>
+                  <span className="attr-value">{employee.role}</span>
+                </div>
+                <div className="attr-item">
+                  <span className="attr-label">Joined On</span>
+                  <span className="attr-value">{employee.joined_at}</span>
+                </div>
+                <div className="attr-item">
+                  <span className="attr-label">Last Working Day</span>
+                  <span className="attr-value">{employee.last_working_date || "Active Staff"}</span>
+                </div>
+                <div className="attr-item">
+                  <span className="attr-label">Open Clearance Tasks</span>
+                  <span className="attr-value">{employee.open_task_count}</span>
+                </div>
               </div>
             </div>
           </section>
@@ -210,7 +213,12 @@ export default function EmployeeLifecycleDetailPage() {
 
               {employee.subscription_assignments.length === 0 ? (
                 <div className="empty-subpanel">
-                  <p>No active or historical software subscriptions allocated.</p>
+                  <div>
+                    <h4 className="task-title">No Subscriptions Assigned</h4>
+                    <p className="text-secondary text-xs" style={{ margin: "2px 0 0" }}>
+                      No active or historical software subscriptions allocated.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="resource-list">
@@ -252,7 +260,12 @@ export default function EmployeeLifecycleDetailPage() {
 
               {employee.asset_assignments.length === 0 ? (
                 <div className="empty-subpanel">
-                  <p>No hardware devices currently in employee custody.</p>
+                  <div>
+                    <h4 className="task-title">No IT Assets in Custody</h4>
+                    <p className="text-secondary text-xs" style={{ margin: "2px 0 0" }}>
+                      No hardware devices currently in employee custody.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="resource-list">
@@ -294,7 +307,7 @@ export default function EmployeeLifecycleDetailPage() {
 
               <form className="inline-add-bar mt-2" onSubmit={offboard}>
                 <div className="flex-1">
-                  <label htmlFor="last-date" className="sr-only">Last Working Date</label>
+                  <label htmlFor="last-date" className="form-label">Last Working Date</label>
                   <input
                     id="last-date"
                     type="date"
@@ -307,6 +320,7 @@ export default function EmployeeLifecycleDetailPage() {
                 <button
                   type="submit"
                   className="btn btn-danger btn-sm"
+                  style={{ alignSelf: "flex-end", height: 38 }}
                   disabled={offboarding || !lastWorkingDate}
                 >
                   <ShieldAlert size={14} />

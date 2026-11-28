@@ -100,41 +100,50 @@ export default function UsagePage() {
       )}
 
       {/* KPI Metrics */}
-      <section className="overview-metrics-grid" aria-label="Cost Breakdown">
-        <MetricCard
-          label="Total Monthly Run Rate"
-          value={total}
-          subtext={
-            currencies.length === 1
-              ? "Normalized 30-day run rate"
-              : currencies.length > 1
-              ? "See currency breakdown below"
-              : "No eligible spend data"
-          }
-          icon={<CircleDollarSign size={20} />}
-        />
-        <MetricCard
-          label="Highest Spend Provider"
-          value={highestService?.service || "—"}
-          subtext={
-            highestService
-              ? `${highestService.currency} ${Number(highestService.monthly_spend).toLocaleString()}/mo`
-              : "No provider data"
-          }
-          icon={<TrendingUp size={20} />}
-        />
-        <MetricCard
-          label="Tracked Cost Sources"
-          value={data?.services.length ?? 0}
-          subtext="Active subscriptions & invoices"
-          icon={<Receipt size={20} />}
-        />
+      <section aria-label="Cost Breakdown">
+        <div className="section-title-row">
+          <div>
+            <span className="section-eyebrow">SPEND TELEMETRY</span>
+            <h2 className="section-title">Monthly Expenditure Overview</h2>
+          </div>
+        </div>
+        <div className="overview-metrics-grid">
+          <MetricCard
+            label="Total Monthly Run Rate"
+            value={total}
+            subtext={
+              currencies.length === 1
+                ? "Normalized 30-day run rate"
+                : currencies.length > 1
+                ? "See currency breakdown below"
+                : "No eligible spend data"
+            }
+            icon={<CircleDollarSign size={20} />}
+          />
+          <MetricCard
+            label="Highest Spend Provider"
+            value={highestService?.service || "—"}
+            subtext={
+              highestService
+                ? `${highestService.currency} ${Number(highestService.monthly_spend).toLocaleString()}/mo`
+                : "No provider data"
+            }
+            icon={<TrendingUp size={20} />}
+          />
+          <MetricCard
+            label="Tracked Cost Sources"
+            value={data?.services.length ?? 0}
+            subtext="Active subscriptions & invoices"
+            icon={<Receipt size={20} />}
+          />
+        </div>
       </section>
 
       {/* Spend Data Table Section */}
       <section className="dashboard-content-card mt-6">
         <div className="card-header-bar">
           <div>
+            <span className="section-eyebrow">LEDGER</span>
             <h2 className="card-heading">Cost Analysis Ledger</h2>
             <p className="card-subheading">
               Original billed amounts normalized to 30-day intervals without synthetic currency skew.

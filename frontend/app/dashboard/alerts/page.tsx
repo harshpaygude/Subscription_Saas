@@ -91,6 +91,7 @@ export default function AlertsPage() {
       <section className="dashboard-content-card">
         <div className="card-header-bar">
           <div>
+            <span className="section-eyebrow">EVENT TELEMETRY</span>
             <h2 className="card-heading">Active Workspace Notifications</h2>
             <p className="card-subheading">
               Generated automatically from verified contract renewals and backend event telemetry.
